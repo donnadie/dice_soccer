@@ -1,0 +1,31 @@
+{
+  "name": "dice-soccer-online",
+  "version": "1.0.0",
+  "description": "Juego de mesa Dice Soccer adaptado a multijugador online usando Node.js y Socket.IO.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "socketio",
+    "express",
+    "nodejs",
+    "juego"
+  ],
+  "author": "Tu Nombre",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "*",
+    "body-parser": "*",
+    "cacache": "*",
+    "express": "*",
+    "express-session": "*",
+    "make-fetch-happen": "*",
+    "node-gyp": "*",
+    "pg": "*",
+    "socket.io": "*",
+    "sqlite3": "*",
+    "tar": "*"
+  }
+}

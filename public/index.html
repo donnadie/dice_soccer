@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dice Soccer Online</title>
+    <style>
+        :root {
+            --color-p1: #4CAF50; /* Green */
+            --color-p2: #2196F3; /* Blue */
+            --color-neutral: #e0e0e0;
+            --color-background: #f7f7f7;
+            --color-text: #333;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: var(--color-background);
+            color: var(--color-text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .game-container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 800px;
+            box-sizing: border-box;
+        }
+        
+        h1 {
+            text-align: center;
+            color: var(--color-p1);
+            margin-bottom: 20px;
+        }
+
+        /* --- Global Layout --- */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .scoreboard { font-size: 2.5em; font-weight: bold; padding: 5px 15px; border: 3px solid #ccc; border-radius: 8px; }
+        .player-cards { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .player-card { width: 48%; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); }
+        #player1-card { background-color: var(--color-p1); color: white; }
+        #player2-card { background-color: var(--color-p2); color: white; }
+        .pitch { display: flex; justify-content: space-between; margin-bottom: 20px; height: 100px; border: 2px solid var(--color-text); border-radius: 5px; position: relative; }
+        .pitch > div { width: 20%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.5em; border-right: 1px dashed var(--color-text); }
+        .active { background-color: rgba(255, 255, 0, 0.2); }
+        .dice-area { text-align: center; margin-bottom: 20px; border-top: 1px solid #ccc; padding-top: 15px; }
+        .dice-display { display: flex; justify-content: center; gap: 20px; font-size: 3em; margin-bottom: 10px; }
+        .dice { width: 60px; height: 60px; line-height: 60px; background-color: var(--color-neutral); border-radius: 8px; font-weight: bold; box-shadow: 0 4px #999; }
+        #action-button { padding: 15px 30px; font-size: 1.2em; font-weight: bold; color: white; background-color: var(--color-p1); border: none; border-radius: 6px; cursor: pointer; width: 100%; }
+        #action-button:disabled { background-color: #aaa; cursor: not-allowed; opacity: 0.6; }
+        #setup-screen, #game-summary-screen { text-align: center; padding: 40px 20px; }
+        .setup-section { display: flex; flex-direction: column; align-items: center; margin-bottom: 30px; border: 1px solid #ddd; padding: 20px; border-radius: 8px; }
+        .setup-inputs { display: flex; gap: 15px; margin-bottom: 15px; }
+        .setup-inputs input { width: 40px; padding: 8px; text-align: center; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; }
+        .setup-section button { padding: 10px 20px; background-color: var(--color-p2); color: white; border: none; border-radius: 5px; cursor: pointer; }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* --- Login / Register screens styling (match visual style) --- */
+        .auth-screen {
+            width: 100%;
+            max-width: 480px;
+            margin: 20px auto;
+            background: white;
+            padding: 24px;
+            border-radius: 10px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.08);
+            text-align: center;
+        }
+        .auth-screen h2 { color: var(--color-p1); margin-bottom: 12px; }
+        .auth-field { display: block; width: 80%; margin: 8px auto; padding: 10px; border: 1px solid #ccc; border-radius: 6px; }
+        .auth-actions { display:flex; gap: 10px; justify-content: center; margin-top: 12px; }
+        .auth-btn { padding: 10px 16px; border-radius: 6px; border: none; cursor: pointer; background: var(--color-p1); color: white; font-weight: bold; }
+        .auth-btn.alt { background: var(--color-p2); }
+        .auth-note { font-size: 0.9em; color: #666; margin-top: 10px; }
+        .error { color: #d32f2f; font-weight: bold; }
+        .success { color: #2e7d32; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+
+        <h1>Dice Soccer Online</h1>
+
+        <!-- AUTH SCREENS: LOGIN / REGISTER (OPTION 1: integrated) -->
+        <div id="auth-login-screen" class="auth-screen">
+            <h2>Iniciar sesión</h2>
+            <input id="auth-login-username" class="auth-field" placeholder="Usuario" autocomplete="username">
+            <input id="auth-login-password" class="auth-field" type="password" placeholder="Contraseña" autocomplete="current-password">
+            <div class="auth-actions">
+                <button id="auth-login-btn" class="auth-btn">Ingresar</button>
+                <button id="auth-go-register" class="auth-btn alt">Registrarse</button>
+            </div>
+            <p id="auth-login-status" class="error" style="min-height:1.2em;"></p>
+            <p class="auth-note">El usuario se usará como tu nombre en las partidas.</p>
+        </div>
+
+        <div id="auth-register-screen" class="auth-screen hidden">
+            <h2>Registro</h2>
+            <input id="auth-reg-username" class="auth-field" placeholder="Usuario" autocomplete="username">
+            <input id="auth-reg-password" class="auth-field" type="password" placeholder="Contraseña (mín 6 caracteres)" autocomplete="new-password">
+            <div class="auth-actions">
+                <button id="auth-register-btn" class="auth-btn">Registrar</button>
+                <button id="auth-go-login" class="auth-btn alt">Volver a Login</button>
+            </div>
+            <p id="auth-register-status" class="error" style="min-height:1.2em;"></p>
+            <p class="auth-note">La contraseña se almacena de forma segura (bcrypt) en el servidor.</p>
+        </div>
+
+        <!-- LOBBY (original UI, modified: player name removed / shows logged username) -->
+        <div id="lobby-screen" class="hidden">
+            <h2>Bienvenido a Dice Soccer Online</h2>
+            <p>Introduce un ID de Sala para unirte a una partida o crear una nueva.</p>
+            
+            <div id="available-rooms-section" style="margin-bottom: 30px; text-align: left; width: 80%; margin: 20px auto; border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
+                <h3>Salas Disponibles (<span id="rooms-count">0</span>)</h3>
+                <ul id="rooms-list" style="list-style: none; padding: 0;">
+                    <li style="color: #666;">No hay salas disponibles. Crea una!</li>
+                </ul>
+            </div>
+            <div class="setup-section" style="width: 80%; margin: 20px auto;">
+                <h3>Sala de Partida (Crear o Unirse por ID)</h3>
+                <div class="setup-inputs" style="flex-direction: column; align-items: center;">
+                    <!-- Ya no pedimos el nombre aquí: se muestra el usuario autenticado -->
+                    <label>Usuario: <strong id="logged-username-display">-</strong></label>
+                    <label>ID de Sala: <input type="text" id="room-id-input" placeholder="e.g., PARTIDA1" value="TEST_ROOM" style="width: 150px; text-align: center;"></label>
+                </div>
+                <button id="join-room-btn" style="margin-top: 15px; padding: 12px 25px; background-color: var(--color-p1);">Unirse a la Sala</button>
+                <p id="lobby-status" style="margin-top: 10px; font-weight: bold; color: red;"></p>
+            </div>
+        </div>
+        
+        <!-- RESTO DEL HTML (SETUP, GAME, SUMMARY) - idéntico al original -->
+        <div id="setup-screen" class="hidden">
+            <h2 id="setup-message">Esperando jugadores...</h2>
+            
+            <div id="setup-player1" class="setup-section">
+                <h3><span id="p1-name-setup">Player 1</span> Tactics (10 Points Total, Max 7 per stat)</h3>
+                <div class="setup-inputs">
+                    <label>Defence (D): <input type="number" id="p1-d" value="3" min="2" max="5"></label>
+                    <label>Midfield (M): <input type="number" id="p1-m" value="4" min="3" max="6"></label>
+                    <label>Attack (A): <input type="number" id="p1-a" value="3" min="1" max="4"></label>
+                </div>
+                <p id="p1-total">Total: 10/10</p>
+                <button id="p1-setup-btn" disabled>Lock Tactics</button>
+            </div>
+
+            <div id="setup-player2" class="setup-section hidden">
+                <h3><span id="p2-name-setup">Player 2</span> Tactics (10 Points Total, Max 7 per stat)</h3>
+                <div class="setup-inputs">
+                    <label>Defence (D): <input type="number" id="p2-d" value="4" min="0" max="7"></label>
+                    <label>Midfield (M): <input type="number" id="p2-m" value="3" min="0" max="7"></label>
+                    <label>Attack (A): <input type="number" id="p2-a" value="3" min="0" max="7"></label>
+                </div>
+                <p id="p2-total">Total: 10/10</p>
+                <button id="p2-setup-btn" disabled>Lock Tactics</button>
+            </div>
+            
+            <button id="leave-room-btn" style="margin-top: 20px; padding: 10px 20px; background-color: #f44336; color: white; border: none; border-radius: 5px;" disabled>
+                Salir de la Sala y Volver al Lobby
+            </button>
+        </div>
+        
+        <div id="game-summary-screen" class="hidden">
+            <h2>MATCH FINISHED!</h2>
+            <div class="scoreboard" style="margin: 20px auto;"><span id="final-p1-score">0</span> - <span id="final-p2-score">0</span></div>
+            <h3 id="final-winner-message"></h3>
+            
+            <p style="margin-top: 30px; font-weight: bold;">Final Tactics:</p>
+            <div class="player-cards" style="width: 80%; margin: 10px auto;">
+                <div id="final-p1-card" class="player-card" style="background-color: var(--color-p1);">
+                    <h3><span id="final-p1-name"></span></h3>
+                    <p id="final-p1-stats" class="stats">D: <span>0</span> M: <span>0</span> A: <span>0</span></p>
+                </div>
+                <div id="final-p2-card" class="player-card" style="background-color: var(--color-p2);">
+                    <h3><span id="final-p2-name"></span></h3>
+                    <p id="final-p2-stats" class="stats">D: <span>0</span> M: <span>0</span> A: <span>0</span></p>
+                </div>
+            </div>
+            <button id="summary-action-button" style="margin-top: 30px; padding: 15px 30px; font-size: 1.2em; width: 100%; background-color: var(--color-p2); color: white; border: none; border-radius: 6px;">Start New Game</button>
+        </div>
+
+        <div id="main-game" class="hidden">
+            <div class="header">
+                <span id="phase-display">Phase 0 / 9 (0-10mins)</span>
+                <div class="scoreboard"><span id="p1-score">0</span> - <span id="p2-score">0</span></div>
+            </div>
+
+            <div class="player-cards">
+                <div id="player1-card" class="player-card">
+                    <h3><span id="p1-name"></span></h3>
+                    <p id="p1-stats" class="stats">D: <span>0</span> M: <span>0</span> A: <span>0</span></p>
+                </div>
+                <div id="player2-card" class="player-card">
+                    <h3><span id="p2-name"></span></h3>
+                    <p id="p2-stats" class="stats">D: <span>0</span> M: <span>0</span> A: <span>0</span></p>
+                </div>
+            </div>
+
+            <div class="pitch">
+                <div id="p2-g-area">G</div> 
+                <div id="p2-a-area">A</div>
+                <div id="m-area" class="active">M <div id="ball-marker" style="width: 15px; height: 15px; background: red; border-radius: 50%; position: absolute; transform: translate(-50%, -50%);"></div></div> 
+                <div id="p1-a-area">A</div>
+                <div id="p1-g-area">G</div>
+            </div>
+            
+            <p style="text-align: center; font-weight: bold;" id="game-status">**Esperando jugadores...**</p>
+
+            <div class="dice-area">
+                <h2>Last Roll</h2>
+                <div class="dice-display">
+                    <div id="dice1-display" class="dice">?</div>
+                    <div id="dice2-display" class="dice">?</div>
+                </div>
+                <p id="roll-details">Rolls:</p>
+                <p id="result-totals">P1 Total: 0 | P2 Total: 0</p>
+                <button id="action-button">Roll Dice</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // --- CONSTANTES ---
+        const RULES_MAX_POINTS = 10;
+        const RULES_MAX_STAT = 7;
+        const RULES_MAX_PHASES = 9;
+
+        // --- CONEXIÓN DE SOCKET.IO ---
+        const socket = io('http://localhost:3000'); 
+
+        // --- VARIABLES DE ESTADO LOCAL ---
+        let localGame = {}; 
+        let playerRole = 0; 
+        let currentRoomId = null; 
+        let localPlayerReadyForNewGame = false;
+        
+        // --- PERSISTENCIA: USAMOS sessionStorage PARA ROOM/ROLE, localStorage PARA NAME ---
+        const ROOM_ID_KEY = 'diceSoccerRoomId';
+        const ROLE_KEY = 'diceSoccerPlayerRole';
+        const PLAYER_NAME_KEY = 'diceSoccerPlayerName'; 
+
+        // --- ELEMENTOS AUTH ---
+        const authLoginScreen = document.getElementById('auth-login-screen');
+        const authRegisterScreen = document.getElementById('auth-register-screen');
+        const authLoginUsername = document.getElementById('auth-login-username');
+        const authLoginPassword = document.getElementById('auth-login-password');
+        const authLoginBtn = document.getElementById('auth-login-btn');
+        const authGoRegister = document.getElementById('auth-go-register');
+        const authLoginStatus = document.getElementById('auth-login-status');
+
+        const authRegUsername = document.getElementById('auth-reg-username');
+        const authRegPassword = document.getElementById('auth-reg-password');
+        const authRegisterBtn = document.getElementById('auth-register-btn');
+        const authGoLogin = document.getElementById('auth-go-login');
+        const authRegisterStatus = document.getElementById('auth-register-status');
+
+        // --- ELEMENTOS DEL DOM (resto) ---
+        const lobbyScreen = document.getElementById('lobby-screen');
+        const roomIdInput = document.getElementById('room-id-input');
+        // playerNameInput removed; we will use logged username instead
+        const joinRoomBtn = document.getElementById('join-room-btn');
+        const lobbyStatus = document.getElementById('lobby-status');
+        const loggedUsernameDisplay = document.getElementById('logged-username-display');
+
+        const setupScreen = document.getElementById('setup-screen');
+        const mainGame = document.getElementById('main-game');
+        const summaryScreen = document.getElementById('game-summary-screen'); 
+        
+        const setupMessage = document.getElementById('setup-message');
+        const p1SetupDiv = document.getElementById('setup-player1');
+        const p2SetupDiv = document.getElementById('setup-player2');
+        const actionButton = document.getElementById('action-button');
+        const gameStatus = document.getElementById('game-status');
+        
+        const setupInputsP1 = document.querySelectorAll('#setup-player1 input');
+        const setupInputsP2 = document.querySelectorAll('#setup-player2 input');
+        
+        const dice1Display = document.getElementById('dice1-display');
+        const dice2Display = document.getElementById('dice2-display');
+        const resultTotals = document.getElementById('result-totals');
+        const rollDetails = document.getElementById('roll-details');
+        const summaryActionButton = document.getElementById('summary-action-button');
+        
+        // NUEVO ELEMENTO DEL SETUP
+        const leaveRoomBtn = document.getElementById('leave-room-btn'); 
+
+        // NUEVOS ELEMENTOS DEL LOBBY
+        const roomsList = document.getElementById('rooms-list');
+        const roomsCount = document.getElementById('rooms-count');
+        
+        // --- UTILIDADES DE SESIÓN / AUTH ---
+        function showAuthLogin() {
+            authLoginScreen.classList.remove('hidden');
+            authRegisterScreen.classList.add('hidden');
+            lobbyScreen.classList.add('hidden');
+            setupScreen.classList.add('hidden');
+            mainGame.classList.add('hidden');
+            summaryScreen.classList.add('hidden');
+            authLoginStatus.textContent = '';
+        }
+        function showAuthRegister() {
+            authLoginScreen.classList.add('hidden');
+            authRegisterScreen.classList.remove('hidden');
+            lobbyScreen.classList.add('hidden');
+            setupScreen.classList.add('hidden');
+            mainGame.classList.add('hidden');
+            summaryScreen.classList.add('hidden');
+            authRegisterStatus.textContent = '';
+        }
+        function showLobbyScreen() {
+            authLoginScreen.classList.add('hidden');
+            authRegisterScreen.classList.add('hidden');
+
+            mainGame.classList.add('hidden');
+            summaryScreen.classList.add('hidden');
+            setupScreen.classList.add('hidden');
+            lobbyScreen.classList.remove('hidden');
+
+            joinRoomBtn.disabled = false;
+            roomIdInput.disabled = false;
+            lobbyStatus.textContent = '';
+        }
+
+        function showSetupScreen() {
+            authLoginScreen.classList.add('hidden');
+            authRegisterScreen.classList.add('hidden');
+            lobbyScreen.classList.add('hidden');
+            setupScreen.classList.remove('hidden');
+            mainGame.classList.add('hidden');
+            summaryScreen.classList.add('hidden');
+            
+            updateLeaveButtonState(); // Llamar al actualizar la pantalla de setup
+        }
+
+        function startGame() {
+            authLoginScreen.classList.add('hidden');
+            authRegisterScreen.classList.add('hidden');
+            lobbyScreen.classList.add('hidden');
+            setupScreen.classList.add('hidden');
+            summaryScreen.classList.add('hidden');
+            mainGame.classList.remove('hidden');
+        }
+
+        function showSummaryScreen() {
+            authLoginScreen.classList.add('hidden');
+            authRegisterScreen.classList.add('hidden');
+            lobbyScreen.classList.add('hidden');
+            setupScreen.classList.add('hidden');
+            mainGame.classList.add('hidden');
+            summaryScreen.classList.remove('hidden');
+            
+            // Populate summary details
+            document.getElementById('final-p1-score').textContent = localGame.p1.score;
+            document.getElementById('final-p2-score').textContent = localGame.p2.score;
+            document.getElementById('final-p1-name').textContent = localGame.p1.name;
+            document.getElementById('final-p2-name').textContent = localGame.p2.name;
+
+
+            // Determine winner
+            let winnerMessage = '';
+            if (localGame.p1.score > localGame.p2.score) {
+                winnerMessage = `**${localGame.p1.name} WINS** with a score of ${localGame.p1.score}-${localGame.p2.score}!`;
+            } else if (localGame.p2.score > localGame.p1.score) {
+                winnerMessage = `**${localGame.p2.name} WINS** with a score of ${localGame.p2.score}-${localGame.p1.score}!`;
+            } else {
+                winnerMessage = `**It's a DRAW!** Final score: ${localGame.p1.score}-${localGame.p2.score}.`;
+            }
+            document.getElementById('final-winner-message').innerHTML = winnerMessage;
+            
+            // Display final tactics
+            document.getElementById('final-p1-stats').innerHTML = `D: <span>${localGame.p1.D}</span> M: <span>${localGame.p1.M}</span> A: <span>${localGame.p1.A}</span>`;
+            document.getElementById('final-p2-stats').innerHTML = `D: <span>${localGame.p2.D}</span> M: <span>${localGame.p2.M}</span> A: <span>${localGame.p2.A}</span>`;
+
+            // Set button state and action based on readiness
+            const localReady = (playerRole === 1) ? localGame.p1ReadyForNewGame : localGame.p2ReadyForNewGame;
+            const otherAbandoned = (playerRole === 1) ? localGame.abandonedBy === 'p2' : localGame.abandonedBy === 'p1';
+
+            if (otherAbandoned) {
+                 // Si el oponente abandonó, el botón ya no sirve (la redirección es automática).
+                 summaryActionButton.textContent = "Opponent Abandoned. Waiting for redirection...";
+                 summaryActionButton.disabled = true;
+            } else if (localReady) {
+                summaryActionButton.textContent = "Waiting for Opponent...";
+                summaryActionButton.disabled = true;
+            } else {
+                summaryActionButton.textContent = "Start New Game";
+                summaryActionButton.disabled = false;
+            }
+            summaryActionButton.onclick = handleStartNewGameClick;
+        }
+        
+        // --- MANEJADORES DE AUTH (login/register) ---
+        authGoRegister.onclick = (e) => { e.preventDefault(); showAuthRegister(); };
+        authGoLogin.onclick = (e) => { e.preventDefault(); showAuthLogin(); };
+
+        authRegisterBtn.onclick = async () => {
+            const u = authRegUsername.value.trim();
+            const p = authRegPassword.value.trim();
+            authRegisterStatus.style.color = 'red';
+            if (!u || !p) {
+                authRegisterStatus.textContent = 'Completa todos los campos.';
+                return;
+            }
+            if (p.length < 6) {
+                authRegisterStatus.textContent = 'La contraseña debe tener al menos 6 caracteres.';
+                return;
+            }
+            authRegisterStatus.textContent = 'Registrando...';
+            try {
+                const res = await fetch('/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: u, password: p })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    authRegisterStatus.style.color = 'green';
+                    authRegisterStatus.textContent = 'Registro exitoso. Redirigiendo al login...';
+                    setTimeout(() => {
+                        authRegUsername.value = '';
+                        authRegPassword.value = '';
+                        showAuthLogin();
+                    }, 1200);
+                } else {
+                    authRegisterStatus.textContent = data.error || 'Error en el registro.';
+                }
+            } catch (err) {
+                console.error('register error', err);
+                authRegisterStatus.textContent = 'Error de conexión al servidor.';
+            }
+        };
+
+        authLoginBtn.onclick = async () => {
+            const u = authLoginUsername.value.trim();
+            const p = authLoginPassword.value.trim();
+            authLoginStatus.style.color = 'red';
+            if (!u || !p) {
+                authLoginStatus.textContent = 'Completa usuario y contraseña.';
+                return;
+            }
+            authLoginStatus.textContent = 'Iniciando sesión...';
+            try {
+                const res = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: u, password: p })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    // Guardar usuario y mostrar lobby
+                    localStorage.setItem(PLAYER_NAME_KEY, data.username);
+                    loggedUsernameDisplay.textContent = data.username;
+                    authLoginUsername.value = '';
+                    authLoginPassword.value = '';
+                    authLoginStatus.textContent = '';
+                    showLobbyScreen();
+                } else {
+                    authLoginStatus.textContent = data.error || 'Usuario o contraseña incorrectos.';
+                }
+            } catch (err) {
+                console.error('login error', err);
+                authLoginStatus.textContent = 'Error de conexión al servidor.';
+            }
+        };
+
+        // Logout (desde lobby)
+        function logout() {
+            localStorage.removeItem(PLAYER_NAME_KEY);
+            loggedUsernameDisplay.textContent = '-';
+            // Return to login screen
+            showAuthLogin();
+        }
+
+        // --- MANEJADORES DE LOBBY ---
+        function handleJoinRoom(autoJoin = false, storedRoomId = null, storedName = null) {
+            let roomId, playerName;
+
+            if (autoJoin) {
+                // Lógica para re-unirse (usado solo en refresh)
+                roomId = storedRoomId;
+                playerName = storedName || 'Jugador Reconectado';
+            } else {
+                roomId = roomIdInput.value.trim().toUpperCase();
+                // Obtener el nombre desde localStorage (ya no desde input)
+                playerName = localStorage.getItem(PLAYER_NAME_KEY) || '';
+                if (roomId.length < 3) {
+                    lobbyStatus.textContent = "El ID de Sala debe tener al menos 3 caracteres.";
+                    return;
+                }
+                if (!playerName) {
+                    lobbyStatus.textContent = "Debes iniciar sesión antes de entrar a una sala.";
+                    showAuthLogin();
+                    return;
+                }
+            }
+            
+            // --- PERSISTENCE: Save name before join to handle re-join ---
+            localStorage.setItem(PLAYER_NAME_KEY, playerName);
+
+            currentRoomId = roomId; // Establecer el ID de sala localmente
+            
+            // Deshabilitar UI durante la conexión
+            joinRoomBtn.disabled = true;
+            roomIdInput.disabled = true;
+            lobbyStatus.textContent = `Intentando unirse/crear Sala: ${roomId} como ${playerName}...`;
+            
+            socket.emit('joinRoom', roomId, playerName); // Enviar nombre al servidor
+        }
+
+        // Función para unirse a una sala existente desde la lista
+        function joinExistingRoom(roomId) {
+            const storedName = localStorage.getItem(PLAYER_NAME_KEY);
+            if (!storedName) {
+                lobbyStatus.textContent = "Por favor, inicia sesión antes de unirte.";
+                showAuthLogin();
+                return;
+            }
+            roomIdInput.value = roomId; // Pre-llenar el input para la lógica de handleJoinRoom
+            handleJoinRoom(false);
+        }
+
+        // --- LÓGICA DE SALIR DE LA SALA (NUEVO) ---
+        function handleLeaveRoomClick() {
+            if (localGame.playerCount === 1 && currentRoomId && playerRole !== 0) {
+                leaveRoomBtn.textContent = 'Saliendo...';
+                leaveRoomBtn.disabled = true;
+                socket.emit('leaveRoom');
+            }
+        }
+        
+        function updateLeaveButtonState() {
+            if (!leaveRoomBtn || !localGame.playerCount) return;
+            
+            const isSinglePlayer = localGame.playerCount === 1;
+            
+            if (isSinglePlayer) {
+                leaveRoomBtn.disabled = false;
+                leaveRoomBtn.textContent = 'Salir de la Sala y Volver al Lobby';
+            } else if (localGame.playerCount === 2) {
+                leaveRoomBtn.disabled = true;
+                leaveRoomBtn.textContent = 'Salir de la Sala (Room Llena - ¡Juego a punto de comenzar!)';
+            } else {
+                leaveRoomBtn.disabled = true;
+                leaveRoomBtn.textContent = 'Saliendo de la Sala...';
+            }
+        }
+        // --- FIN: LÓGICA DE SALIR DE LA SALA ---
+
+        // --- LÓGICA DE JUEGO (CLIENTE) ---
+
+        function lockSetup(playerNum) {
+            if (playerNum !== playerRole || currentRoomId === null) return; 
+
+            const d = parseInt(document.getElementById(`p${playerNum}-d`).value) || 0;
+            const m = parseInt(document.getElementById(`p${playerNum}-m`).value) || 0;
+            const a = parseInt(document.getElementById(`p${playerNum}-a`).value) || 0;
+
+            if (d + m + a !== RULES_MAX_POINTS) return;
+
+            // Deshabilita los inputs y el botón localmente
+            document.getElementById(`p${playerRole}-d`).disabled = true;
+            document.getElementById(`p${playerRole}-m`).disabled = true;
+            document.getElementById(`p${playerRole}-a`).disabled = true;
+            document.getElementById(`p${playerRole}-setup-btn`).disabled = true;
+            document.getElementById(`p${playerRole}-setup-btn`).textContent = 'Locked!';
+
+            socket.emit('setup', { role: playerRole, d, m, a }); 
+        }
+
+        function handleRoll() {
+            if (localGame.gameOver || currentRoomId === null) return; 
+            socket.emit('rollAction'); 
+        }
+        
+        function handleStartNewGameClick() {
+            if (localPlayerReadyForNewGame || currentRoomId === null) return;
+
+            localPlayerReadyForNewGame = true;
+            summaryActionButton.textContent = "Waiting for Opponent...";
+            summaryActionButton.disabled = true;
+            
+            socket.emit('playerReadyForNewGame'); 
+        }
+        
+        function checkTotal(playerNum) {
+            // Esta función solo debe validar la entrada del jugador local.
+            if (playerNum !== playerRole && playerRole !== 0) return; 
+            
+            const dInput = document.getElementById(`p${playerNum}-d`);
+            const mInput = document.getElementById(`p${playerNum}-m`);
+            const aInput = document.getElementById(`p${playerNum}-a`);
+            
+            const d = parseInt(dInput.value) || 0;
+            const m = parseInt(mInput.value) || 0;
+            const a = parseInt(aInput.value) || 0;
+            
+            const total = d + m + a;
+            const totalDisplay = document.getElementById(`p${playerNum}-total`);
+            const button = document.getElementById(`p${playerNum}-setup-btn`); 
+
+            totalDisplay.textContent = `Total: ${total}/${RULES_MAX_POINTS}`;
+
+            const isValid = total === RULES_MAX_POINTS && d <= RULES_MAX_STAT && m <= RULES_MAX_STAT && a <= RULES_MAX_STAT;
+
+            if (isValid) {
+                totalDisplay.style.color = 'var(--color-p1)';
+                
+                // Comprobamos si las tácticas ya fueron enviadas
+                const p = localGame[`p${playerNum}`] || {D:0, M:0, A:0};
+                const isTacticsSent = (p.D + p.M + p.A) === RULES_MAX_POINTS; 
+
+                if (!isTacticsSent && playerNum === playerRole) { // Solo habilitar si es el jugador local y no ha enviado
+                    button.disabled = false;
+                    button.textContent = 'Lock Tactics';
+                } else if (isTacticsSent) {
+                    button.disabled = true;
+                    button.textContent = 'Locked!';
+                }
+            } else {
+                totalDisplay.style.color = 'red';
+                button.disabled = true;
+                button.textContent = 'Lock Tactics';
+            }
+        }
+
+        function updateDisplay() {
+            const game = localGame;
+            if (!game || !game.p1) return; 
+
+            // Scoreboard and Stats
+            document.getElementById('p1-score').textContent = game.p1.score;
+            document.getElementById('p2-score').textContent = game.p2.score;
+            document.getElementById('p1-stats').innerHTML = `D: <span>${game.p1.D}</span> M: <span>${game.p1.M}</span> A: <span>${game.p1.A}</span>`;
+            document.getElementById('p2-stats').innerHTML = `D: <span>${game.p2.D}</span> M: <span>${game.p2.M}</span> A: <span>${game.p2.A}</span>`;
+            
+            // Player Names
+            document.getElementById('p1-name').textContent = `${game.p1.name} ${playerRole === 1 ? '(YOU)' : ''}`;
+            document.getElementById('p2-name').textContent = `${game.p2.name} ${playerRole === 2 ? '(YOU)' : ''}`;
+            document.getElementById('p1-name-setup').textContent = game.p1.name;
+            document.getElementById('p2-name-setup').textContent = game.p2.name;
+            
+            // Phase
+            document.getElementById('phase-display').textContent = `Phase ${game.currentPhase} / ${RULES_MAX_PHASES}`;
+            
+            // Status Message
+            gameStatus.innerHTML = game.statusMessage;
+
+            // Pitch Marker Logic
+            document.getElementById('p2-g-area').classList.remove('active');
+            document.getElementById('p2-a-area').classList.remove('active');
+            document.getElementById('m-area').classList.remove('active');
+            document.getElementById('p1-a-area').classList.remove('active');
+            document.getElementById('p1-g-area').classList.remove('active');
+            
+            let activeAreaId = 'm-area';
+            if (game.ballArea === 'A') { activeAreaId = (game.attacker === 1) ? 'p1-a-area' : 'p2-a-area'; } 
+            else if (game.ballArea === 'G') { activeAreaId = (game.attacker === 1) ? 'p1-g-area' : 'p2-g-area'; }
+            document.getElementById(activeAreaId).classList.add('active');
+            
+            const areaElement = document.getElementById(activeAreaId);
+            let marker = document.getElementById('ball-marker');
+            if (!areaElement.contains(marker)) { areaElement.appendChild(marker); }
+
+
+            // Dice Rolls Display
+            const bothPlayersRolled = game.p1Rolled && game.p2Rolled;
+            dice1Display.textContent = game.lastRoll.roll1; 
+            dice2Display.textContent = game.lastRoll.roll2; 
+
+            if (game.lastRoll.details) {
+                rollDetails.textContent = game.lastRoll.details; 
+                
+                const modifier1 = game.lastRoll.total1 - (game.lastRoll.roll1 === '?' ? 0 : parseInt(game.lastRoll.roll1));
+                const modifier2 = game.lastRoll.total2 - (game.lastRoll.roll2 === '?' ? 0 : parseInt(game.lastRoll.roll2));
+
+                resultTotals.innerHTML = `
+                    **P1:** ${game.lastRoll.roll1} (Dado) + ${modifier1} (Táctica) = **${game.lastRoll.total1}** <br>
+                    **P2:** ${game.lastRoll.roll2} (Dado) + ${modifier2} (Táctica) = **${game.lastRoll.total2}**
+                `;
+            } else { 
+                rollDetails.textContent = 'Rolls:';
+                resultTotals.innerHTML = `P1 Total: ? | P2 Total: ?`; 
+            }
+
+            // Button Control
+            const isLocalPlayerRolled = playerRole === 1 ? game.p1Rolled : game.p2Rolled;
+            // const isOpponentRolled = playerRole === 1 ? game.p2Rolled : game.p1Rolled;
+
+            let buttonText = "Roll Dice";
+            let buttonDisabled = false;
+
+            if (game.gameOver || !game.isSetupComplete || game.playerCount < 2) {
+                buttonDisabled = true;
+                if (game.gameOver) buttonText = "MATCH OVER";
+                else if (game.playerCount < 2) buttonText = "Waiting for Opponent...";
+                else buttonText = "Waiting for Kick Off...";
+            } else if (bothPlayersRolled) {
+                buttonText = "Next Confrontation";
+                buttonDisabled = false;
+            } else if (isLocalPlayerRolled) {
+                const opponentName = (playerRole === 1) ? game.p2.name : game.p1.name;
+                buttonText = `Waiting for ${opponentName}...`;
+                buttonDisabled = true;
+            } else {
+                const isAttacker = game.attacker === playerRole;
+                const isDefender = game.defender === playerRole;
+                if (game.ballArea === 'M') buttonText = "Roll for Kick Off!";
+                else if (game.ballArea === 'A' || game.ballArea === 'G') {
+                    if (isAttacker) buttonText = (game.ballArea === 'A') ? "Roll for Attack!" : "Roll for Goal!";
+                    else if (isDefender) buttonText = (game.ballArea === 'A') ? "Roll for Defend!" : "Roll for Save!";
+                    else {
+                        buttonText = "Watching";
+                        buttonDisabled = true;
+                    }
+                } else {
+                    buttonText = "Roll Dice";
+                }
+            }
+
+            actionButton.textContent = buttonText;
+            actionButton.disabled = buttonDisabled;
+
+            // Highlighting the current player's card
+            document.getElementById('player1-card').style.boxShadow = '';
+            document.getElementById('player2-card').style.boxShadow = '';
+            if (game.attacker) {
+                const activeCardId = (game.attacker === 1) ? 'player1-card' : 'player2-card';
+                document.getElementById(activeCardId).style.boxShadow = `0 0 10px 5px ${(game.attacker === 1) ? 'var(--color-p1)' : 'var(--color-p2)'}`;
+            }
+        }
+        
+        // --- CONFIGURACIÓN DE SOCKETS (CLIENTE) ---
+        
+        // 1. Asignación de rol
+        socket.on('roleAssignment', (role, p1Name, p2Name) => {
+            playerRole = role;
+            
+            // --- PERSISTENCE: Save session data (uses sessionStorage and localStorage) ---
+            const localName = localStorage.getItem(PLAYER_NAME_KEY) || (role === 1 ? p1Name : p2Name);
+            saveSession(currentRoomId, role, localName);
+            
+            // Actualizar nombres en inputs de setup (para que el checkTotal funcione con el nombre)
+            document.getElementById('p1-name-setup').textContent = p1Name;
+            document.getElementById('p2-name-setup').textContent = p2Name;
+            
+            // Asignar el div de setup visible y deshabilitar el otro
+            if (playerRole === 1) {
+                setupInputsP2.forEach(input => input.disabled = true);
+                p2SetupDiv.classList.add('hidden');
+                p1SetupDiv.classList.remove('hidden');
+                setupInputsP1.forEach(input => input.disabled = false); // Habilitar inputs locales
+            } else {
+                setupInputsP1.forEach(input => input.disabled = true);
+                p1SetupDiv.classList.add('hidden');
+                p2SetupDiv.classList.remove('hidden');
+                setupInputsP2.forEach(input => input.disabled = false); // Habilitar inputs locales
+            }
+            
+            checkTotal(playerRole); 
+            showSetupScreen();
+        });
+        
+        // 2. Recepción de estado del juego desde el servidor
+        socket.on('stateUpdate', (serverGame) => {
+            localGame = serverGame;
+
+            const p1Submitted = (serverGame.p1.D + serverGame.p1.M + serverGame.p1.A) === RULES_MAX_POINTS;
+            const p2Submitted = (serverGame.p2.D + serverGame.p2.M + serverGame.p2.A) === RULES_MAX_POINTS;
+            const isAllTacticsSubmitted = p1Submitted && p2Submitted;
+            
+            if (serverGame.gameOver) {
+                showSummaryScreen(); 
+            } else if (!isAllTacticsSubmitted && currentRoomId !== null && playerRole !== 0) {
+                
+                // --- FIX: HABILITAR INPUTS DE TÁCTICAS AL VOLVER AL SETUP TRAS UN RESET ---
+                const localPlayerStat = serverGame[`p${playerRole}`];
+                const pRole = playerRole;
+
+                // Re-habilitar los inputs, ya que el servidor ha reseteado el estado.
+                document.getElementById(`p${pRole}-d`).disabled = false;
+                document.getElementById(`p${pRole}-m`).disabled = false;
+                document.getElementById(`p${pRole}-a`).disabled = false;
+                
+                // Actualizar los valores de los inputs con los valores del servidor (D:0, M:0, A:0)
+                document.getElementById(`p${pRole}-d`).value = localPlayerStat.D; 
+                document.getElementById(`p${pRole}-m`).value = localPlayerStat.M;
+                document.getElementById(`p${pRole}-a`).value = localPlayerStat.A;
+                
+                // Resetear el texto del botón (checkTotal se encargará de habilitarlo/deshabilitarlo)
+                document.getElementById(`p${pRole}-setup-btn`).textContent = 'Lock Tactics';
+                // --- FIN FIX ---
+
+                showSetupScreen();
+                
+                // Mostrar mensaje de setup
+                if (serverGame.playerCount < 2) {
+                    setupMessage.innerHTML = `Conectado a Sala **${currentRoomId}** como ${localGame[`p${playerRole}`].name}. Esperando al oponente...`;
+                } else if (serverGame.playerCount === 2) {
+                    const localPlayerSubmitted = playerRole === 1 ? p1Submitted : p2Submitted;
+                    const opponentName = (playerRole === 1) ? localGame.p2.name : localGame.p1.name;
+                    
+                    if (localPlayerSubmitted) {
+                        setupMessage.textContent = `Tácticas enviadas. Esperando la configuración de ${opponentName}...`;
+                    } else {
+                        setupMessage.textContent = `${localGame[`p${playerRole}`].name}, configura tus ${RULES_MAX_POINTS} puntos y presiona "Lock Tactics".`;
+                    }
+                }
+                
+                // checkTotal ahora re-evaluará el estado inicial (0 puntos, inhabilitando el botón)
+                // forzando al jugador a re-introducir los 10 puntos.
+                checkTotal(playerRole); 
+                updateLeaveButtonState(); 
+            } else if (isAllTacticsSubmitted) {
+                startGame();
+            }
+            
+            updateDisplay();
+        });
+        
+        // 3. Juego lleno o error al unirse
+        socket.on('gameFull', () => {
+            lobbyStatus.textContent = "La sala está llena o tu sesión expiró. Intenta con otro ID.";
+            joinRoomBtn.disabled = false;
+            roomIdInput.disabled = false;
+            
+            // --- PERSISTENCE: Clear session if re-join failed (clears sessionStorage) ---
+            clearSession(); 
+            // si no hay usuario, retornar al login
+            const storedName = localStorage.getItem(PLAYER_NAME_KEY);
+            if (!storedName) showAuthLogin();
+        });
+
+        // 4. El servidor nos informa que el juego terminó 
+        socket.on('gameEnd', (message) => {
+             console.log(message);
+        });
+        
+        // 5. Evento para manejar el inicio rápido de juego cuando el oponente abandona
+        socket.on('goToSetup', (updatedGame) => {
+            localGame = updatedGame;
+            
+            // --- INICIO: LÓGICA DE TIMEOUT DE REDIRECCIÓN DE 3 SEGUNDOS ---
+            const REDIRECTION_DELAY = 3000;
+            const redirectionMessage = `Oponente abandonó. Redireccionando a la configuración en ${REDIRECTION_DELAY / 1000} segundos...`;
+            
+            // Actualizar la pantalla de resumen para mostrar el mensaje de espera
+            if (!summaryScreen.classList.contains('hidden')) {
+                document.getElementById('final-winner-message').innerHTML = '<span style="color: red; font-size: 1.2em;">' + redirectionMessage + '</span>';
+                summaryActionButton.disabled = true;
+                summaryActionButton.textContent = "Redirecting...";
+            }
+            
+            setTimeout(() => {
+                // Restaurar inputs y botón de setup
+                const p = localGame[`p${playerRole}`];
+                const dInput = document.getElementById(`p${playerRole}-d`);
+                const mInput = document.getElementById(`p${playerRole}-m`);
+                const aInput = document.getElementById(`p${playerRole}-a`);
+                const setupBtn = document.getElementById(`p${playerRole}-setup-btn`); 
+
+                dInput.disabled = false; 
+                mInput.disabled = false;
+                aInput.disabled = false;
+                setupBtn.textContent = 'Lock Tactics'; 
+
+                dInput.value = p.D; 
+                mInput.value = p.M;
+                aInput.value = p.A;
+
+                localPlayerReadyForNewGame = false; 
+                checkTotal(playerRole); 
+                
+                if (summaryActionButton) {
+                    summaryActionButton.disabled = false;
+                    summaryActionButton.innerText = 'Start New Game';
+                }
+                
+                showSetupScreen(); 
+                updateDisplay();
+            }, REDIRECTION_DELAY);
+            // --- FIN: LÓGICA DE TIMEOUT DE REDIRECCIÓN DE 3 SEGUNDOS ---
+        });
+        
+        // 6. Evento para volver al lobby de forma controlada (NUEVO)
+        socket.on('goToLobby', () => {
+            clearSession();
+            showLobbyScreen();
+        });
+        
+        // 7. Lista de Salas Activas
+        socket.on('activeRoomsList', (activeRooms) => {
+            roomsList.innerHTML = ''; 
+            roomsCount.textContent = activeRooms.length;
+
+            if (activeRooms.length === 0) {
+                roomsList.innerHTML = '<li style="color: #666;">No hay salas disponibles. Crea una!</li>';
+                return;
+            }
+
+            activeRooms.forEach(roomId => {
+                const listItem = document.createElement('li');
+                listItem.style.marginBottom = '5px';
+                listItem.innerHTML = `<button style="padding: 5px 10px; cursor: pointer; background-color: var(--color-p2); color: white; border: none; border-radius: 5px;" onclick="joinExistingRoom('${roomId}')">Unirse a ${roomId}</button>`;
+                roomsList.appendChild(listItem);
+            });
+        });
+
+
+        // --- ASIGNACIÓN DE MANEJADORES DE EVENTOS ---
+        
+        // Lobby
+        joinRoomBtn.onclick = () => handleJoinRoom(false, null, null);
+        
+        // Setup inputs
+        document.getElementById('p1-d').oninput = () => checkTotal(1);
+        document.getElementById('p1-m').oninput = () => checkTotal(1);
+        document.getElementById('p1-a').oninput = () => checkTotal(1);
+        document.getElementById('p2-d').oninput = () => checkTotal(2);
+        document.getElementById('p2-m').oninput = () => checkTotal(2);
+        document.getElementById('p2-a').oninput = () => checkTotal(2);
+
+        // Setup buttons
+        document.getElementById('p1-setup-btn').onclick = () => lockSetup(1);
+        document.getElementById('p2-setup-btn').onclick = () => lockSetup(2);
+
+        // Action button
+        document.getElementById('action-button').onclick = handleRoll;
+        
+        // Leave room button (NUEVO)
+        leaveRoomBtn.onclick = handleLeaveRoomClick;
+
+        // Logout button from lobby
+        // create logout button dynamically reference if exists
+        // We'll attach to lobby screen as a floating action if needed
+        // (The original index had no logout button; we use localStorage removal)
+        
+        // Initial load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Leer la sesión persistente (Room ID y Rol) de sessionStorage (solo en refresh)
+            const storedRoomId = sessionStorage.getItem(ROOM_ID_KEY);
+            const storedRole = sessionStorage.getItem(ROLE_KEY);
+            
+            // Leer el nombre (por conveniencia) de localStorage (persiste siempre)
+            const storedName = localStorage.getItem(PLAYER_NAME_KEY);
+
+            // Si hay un usuario autenticado, mostrar su nombre en el lobby display
+            if (storedName) {
+                loggedUsernameDisplay.textContent = storedName;
+            } else {
+                loggedUsernameDisplay.textContent = '-';
+            }
+
+            // 1. RECONEXIÓN AUTOMÁTICA (si hay datos en sessionStorage)
+            if (storedRoomId && storedRole && storedName) { 
+                console.log(`Found session for Room: ${storedRoomId}. Attempting to rejoin...`);
+                
+                // Precargar el ID de sala y nombre en el lobby
+                roomIdInput.value = storedRoomId;
+                
+                // Establecer el estado local para la conexión
+                currentRoomId = storedRoomId;
+                playerRole = parseInt(storedRole); 
+                
+                // Intentar reconectar automáticamente
+                handleJoinRoom(true, storedRoomId, storedName); 
+            } else {
+                // 2. MOSTRAR LOBBY o LOGIN (si no hay usuario autenticado)
+                if (storedName) {
+                    showLobbyScreen();
+                } else {
+                    showAuthLogin();
+                }
+                
+                // Pre-llenar el nombre si existe (no hay campo de nombre)
+            }
+            
+            // Inicializar las comprobaciones de total para el formulario de setup
+            checkTotal(1); 
+            checkTotal(2);
+        });
+
+        // --- SESSION HELPERS ---
+        function saveSession(roomId, role, name) {
+            if (roomId) sessionStorage.setItem(ROOM_ID_KEY, roomId);
+            if (role) sessionStorage.setItem(ROLE_KEY, role);
+            if (name) localStorage.setItem(PLAYER_NAME_KEY, name);
+            currentRoomId = roomId;
+        }
+
+        function clearSession() {
+            sessionStorage.removeItem(ROOM_ID_KEY);
+            sessionStorage.removeItem(ROLE_KEY);
+            currentRoomId = null;
+            playerRole = 0;
+        }
+
+    </script>
+</body>
+</html>
