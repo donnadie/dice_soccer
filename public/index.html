@@ -146,9 +146,9 @@
             <div id="setup-player1" class="setup-section">
                 <h3><span id="p1-name-setup">Player 1</span> Tactics (10 Points Total, Max 7 per stat)</h3>
                 <div class="setup-inputs">
-                    <label>Defence (D): <input type="number" id="p1-d" value="3" min="2" max="5"></label>
-                    <label>Midfield (M): <input type="number" id="p1-m" value="4" min="3" max="6"></label>
-                    <label>Attack (A): <input type="number" id="p1-a" value="3" min="1" max="4"></label>
+                    <label>Defence (D) <span class="range">(2–5)</span>: <input type="number" id="p1-d" value="3" min="2" max="5"></label>
+                    <label>Midfield (M) <span class="range">(3–6)</span>: <input type="number" id="p1-m" value="4" min="3" max="6"></label>
+                    <label>Attack (A) <span class="range">(1–4)</span>: <input type="number" id="p1-a" value="3" min="1" max="4"></label>
                 </div>
                 <p id="p1-total">Total: 10/10</p>
                 <button id="p1-setup-btn" disabled>Lock Tactics</button>
@@ -157,9 +157,9 @@
             <div id="setup-player2" class="setup-section hidden">
                 <h3><span id="p2-name-setup">Player 2</span> Tactics (10 Points Total, Max 7 per stat)</h3>
                 <div class="setup-inputs">
-                    <label>Defence (D): <input type="number" id="p2-d" value="4" min="0" max="7"></label>
-                    <label>Midfield (M): <input type="number" id="p2-m" value="3" min="0" max="7"></label>
-                    <label>Attack (A): <input type="number" id="p2-a" value="3" min="0" max="7"></label>
+                    <label>Defence (D) <span class="range">(2–5)</span>: <input type="number" id="p2-d" value="4" min="2" max="5"></label>
+                    <label>Midfield (M) <span class="range">(3–6)</span>: <input type="number" id="p2-m" value="3" min="3" max="6"></label>
+                    <label>Attack (A) <span class="range">(1–4)</span>: <input type="number" id="p2-a" value="3" min="1" max="4"></label>
                 </div>
                 <p id="p2-total">Total: 10/10</p>
                 <button id="p2-setup-btn" disabled>Lock Tactics</button>
@@ -233,7 +233,12 @@
     <script>
         // --- CONSTANTES ---
         const RULES_MAX_POINTS = 10;
-        const RULES_MAX_STAT = 7;
+        const RULES_MIN_STAT_D = 2;
+        const RULES_MIN_STAT_M = 3;
+        const RULES_MIN_STAT_A = 1;
+        const RULES_MAX_STAT_D = 5;
+        const RULES_MAX_STAT_M = 6;
+        const RULES_MAX_STAT_A = 4;
         const RULES_MAX_PHASES = 9;
 
         // --- CONEXIÓN DE SOCKET.IO ---
@@ -353,6 +358,12 @@
         }
 
         function showSummaryScreen() {
+            // 🔧 RESET REAL DEL BOTÓN
+            localPlayerReadyForNewGame = false;
+            summaryActionButton.removeAttribute('disabled');
+            summaryActionButton.disabled = false;
+            summaryActionButton.textContent = 'Start New Game';
+
             authLoginScreen.classList.add('hidden');
             authRegisterScreen.classList.add('hidden');
             lobbyScreen.classList.add('hidden');
@@ -389,12 +400,13 @@
             if (otherAbandoned) {
                  // Si el oponente abandonó, el botón ya no sirve (la redirección es automática).
                  summaryActionButton.textContent = "Opponent Abandoned. Waiting for redirection...";
-                 summaryActionButton.disabled = true;
+                 summaryActionButton.disabled = false;
             } else if (localReady) {
                 summaryActionButton.textContent = "Waiting for Opponent...";
-                summaryActionButton.disabled = true;
+                summaryActionButton.disabled = false;
             } else {
-                summaryActionButton.textContent = "Start New Game";
+                let timestamp = Date.now();
+                summaryActionButton.textContent = "Start New Game " + timestamp;
                 summaryActionButton.disabled = false;
             }
             summaryActionButton.onclick = handleStartNewGameClick;
@@ -532,9 +544,9 @@
 
         // --- LÓGICA DE SALIR DE LA SALA (NUEVO) ---
         function handleLeaveRoomClick() {
-            if (localGame.playerCount === 1 && currentRoomId && playerRole !== 0) {
+            if (currentRoomId && playerRole !== 0) {
                 leaveRoomBtn.textContent = 'Saliendo...';
-                leaveRoomBtn.disabled = true;
+                //leaveRoomBtn.disabled = true;
                 socket.emit('leaveRoom');
             }
         }
@@ -545,13 +557,17 @@
             const isSinglePlayer = localGame.playerCount === 1;
             
             if (isSinglePlayer) {
+                leaveRoomBtn.removeAttribute('disabled');
                 leaveRoomBtn.disabled = false;
                 leaveRoomBtn.textContent = 'Salir de la Sala y Volver al Lobby';
             } else if (localGame.playerCount === 2) {
-                leaveRoomBtn.disabled = true;
+                leaveRoomBtn.removeAttribute('disabled');
+                leaveRoomBtn.disabled = false;
                 leaveRoomBtn.textContent = 'Salir de la Sala (Room Llena - ¡Juego a punto de comenzar!)';
             } else {
-                leaveRoomBtn.disabled = true;
+                
+                leaveRoomBtn.removeAttribute('disabled');
+                leaveRoomBtn.disabled = false;
                 leaveRoomBtn.textContent = 'Saliendo de la Sala...';
             }
         }
@@ -582,17 +598,18 @@
             if (localGame.gameOver || currentRoomId === null) return; 
             socket.emit('rollAction'); 
         }
-        
+
         function handleStartNewGameClick() {
             if (localPlayerReadyForNewGame || currentRoomId === null) return;
 
             localPlayerReadyForNewGame = true;
+
             summaryActionButton.textContent = "Waiting for Opponent...";
-            summaryActionButton.disabled = true;
-            
-            socket.emit('playerReadyForNewGame'); 
-        }
-        
+            summaryActionButton.setAttribute('disabled', 'true');
+
+            socket.emit('playerReadyForNewGame');
+    }
+
         function checkTotal(playerNum) {
             // Esta función solo debe validar la entrada del jugador local.
             if (playerNum !== playerRole && playerRole !== 0) return; 
@@ -611,7 +628,8 @@
 
             totalDisplay.textContent = `Total: ${total}/${RULES_MAX_POINTS}`;
 
-            const isValid = total === RULES_MAX_POINTS && d <= RULES_MAX_STAT && m <= RULES_MAX_STAT && a <= RULES_MAX_STAT;
+            const isValid = total === RULES_MAX_POINTS && d <= RULES_MAX_STAT_D && m <= RULES_MAX_STAT_M && a <= RULES_MAX_STAT_A &&
+                            d >= RULES_MIN_STAT_D && m >= RULES_MIN_STAT_M && a >= RULES_MIN_STAT_A;
 
             if (isValid) {
                 totalDisplay.style.color = 'var(--color-p1)';
@@ -783,6 +801,9 @@
                 showSummaryScreen(); 
             } else if (!isAllTacticsSubmitted && currentRoomId !== null && playerRole !== 0) {
                 
+                localPlayerReadyForNewGame = false;
+                summaryActionButton.removeAttribute('disabled');
+
                 // --- FIX: HABILITAR INPUTS DE TÁCTICAS AL VOLVER AL SETUP TRAS UN RESET ---
                 const localPlayerStat = serverGame[`p${playerRole}`];
                 const pRole = playerRole;
@@ -793,9 +814,9 @@
                 document.getElementById(`p${pRole}-a`).disabled = false;
                 
                 // Actualizar los valores de los inputs con los valores del servidor (D:0, M:0, A:0)
-                document.getElementById(`p${pRole}-d`).value = localPlayerStat.D; 
-                document.getElementById(`p${pRole}-m`).value = localPlayerStat.M;
-                document.getElementById(`p${pRole}-a`).value = localPlayerStat.A;
+                //document.getElementById(`p${pRole}-d`).value = localPlayerStat.D; 
+                //document.getElementById(`p${pRole}-m`).value = localPlayerStat.M;
+                //document.getElementById(`p${pRole}-a`).value = localPlayerStat.A;
                 
                 // Resetear el texto del botón (checkTotal se encargará de habilitarlo/deshabilitarlo)
                 document.getElementById(`p${pRole}-setup-btn`).textContent = 'Lock Tactics';
@@ -857,7 +878,7 @@
             // Actualizar la pantalla de resumen para mostrar el mensaje de espera
             if (!summaryScreen.classList.contains('hidden')) {
                 document.getElementById('final-winner-message').innerHTML = '<span style="color: red; font-size: 1.2em;">' + redirectionMessage + '</span>';
-                summaryActionButton.disabled = true;
+                summaryActionButton.disabled = false;
                 summaryActionButton.textContent = "Redirecting...";
             }
             

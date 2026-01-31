@@ -107,7 +107,7 @@ app.post('/login', async (req, res) => {
 const PORT = 3000;
 const RULES_MAX_POINTS = 10;
 const RULES_MAX_STAT = 7;
-const RULES_MAX_PHASES = 9;
+const RULES_MAX_PHASES = 1;
 
 // --- ESTRUCTURA DEL JUEGO AUTORITATIVA: MAPA DE SALAS ---
 let games = {}; // Almacena el estado de todos los juegos activos, indexados por roomId
@@ -526,8 +526,13 @@ io.on('connection', (socket) => {
 
         const { d, m, a } = data;
         
-        if (d + m + a !== RULES_MAX_POINTS || d < 0 || d > RULES_MAX_STAT || m < 0 || m > RULES_MAX_STAT || a < 0 || a > RULES_MAX_STAT) {
-            io.to(socket.id).emit('stateUpdate', {...game, statusMessage: `Error: Las tácticas deben sumar ${RULES_MAX_POINTS} y cada stat debe estar entre 0 y ${RULES_MAX_STAT}.`});
+        if (
+            d + m + a !== 10 ||
+            d < 2 || d > 5 ||
+            m < 3 || m > 6 ||
+            a < 1 || a > 4
+        ) {
+            io.to(socket.id).emit('stateUpdate', {...game, statusMessage: `Tácticas inválidas. Rangos: Defence 2–5 | Midfield 3–6 | Attack 1–4 (Total 10)`});
             return;
         }
 
