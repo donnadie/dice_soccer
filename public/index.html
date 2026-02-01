@@ -65,7 +65,7 @@
             display: none !important;
         }
 
-        /* --- Login / Register screens styling (match visual style) --- */
+        /* --- Login / Register screens styling --- */
         .auth-screen {
             width: 100%;
             max-width: 480px;
@@ -91,7 +91,6 @@
 
         <h1>Dice Soccer Online</h1>
 
-        <!-- AUTH SCREENS: LOGIN / REGISTER (OPTION 1: integrated) -->
         <div id="auth-login-screen" class="auth-screen">
             <h2>Iniciar sesión</h2>
             <input id="auth-login-username" class="auth-field" placeholder="Usuario" autocomplete="username">
@@ -116,7 +115,6 @@
             <p class="auth-note">La contraseña se almacena de forma segura (bcrypt) en el servidor.</p>
         </div>
 
-        <!-- LOBBY (original UI, modified: player name removed / shows logged username) -->
         <div id="lobby-screen" class="hidden">
             <h2>Bienvenido a Dice Soccer Online</h2>
             <p>Introduce un ID de Sala para unirte a una partida o crear una nueva.</p>
@@ -130,7 +128,6 @@
             <div class="setup-section" style="width: 80%; margin: 20px auto;">
                 <h3>Sala de Partida (Crear o Unirse por ID)</h3>
                 <div class="setup-inputs" style="flex-direction: column; align-items: center;">
-                    <!-- Ya no pedimos el nombre aquí: se muestra el usuario autenticado -->
                     <label>Usuario: <strong id="logged-username-display">-</strong></label>
                     <label>ID de Sala: <input type="text" id="room-id-input" placeholder="e.g., PARTIDA1" value="TEST_ROOM" style="width: 150px; text-align: center;"></label>
                 </div>
@@ -139,7 +136,6 @@
             </div>
         </div>
         
-        <!-- RESTO DEL HTML (SETUP, GAME, SUMMARY) - idéntico al original -->
         <div id="setup-screen" class="hidden">
             <h2 id="setup-message">Esperando jugadores...</h2>
             
@@ -250,12 +246,12 @@
         let currentRoomId = null; 
         let localPlayerReadyForNewGame = false;
         
-        // --- PERSISTENCIA: USAMOS sessionStorage PARA ROOM/ROLE, localStorage PARA NAME ---
+        // --- PERSISTENCIA ---
         const ROOM_ID_KEY = 'diceSoccerRoomId';
         const ROLE_KEY = 'diceSoccerPlayerRole';
         const PLAYER_NAME_KEY = 'diceSoccerPlayerName'; 
 
-        // --- ELEMENTOS AUTH ---
+        // --- ELEMENTOS DOM ---
         const authLoginScreen = document.getElementById('auth-login-screen');
         const authRegisterScreen = document.getElementById('auth-register-screen');
         const authLoginUsername = document.getElementById('auth-login-username');
@@ -263,48 +259,36 @@
         const authLoginBtn = document.getElementById('auth-login-btn');
         const authGoRegister = document.getElementById('auth-go-register');
         const authLoginStatus = document.getElementById('auth-login-status');
-
         const authRegUsername = document.getElementById('auth-reg-username');
         const authRegPassword = document.getElementById('auth-reg-password');
         const authRegisterBtn = document.getElementById('auth-register-btn');
         const authGoLogin = document.getElementById('auth-go-login');
         const authRegisterStatus = document.getElementById('auth-register-status');
-
-        // --- ELEMENTOS DEL DOM (resto) ---
         const lobbyScreen = document.getElementById('lobby-screen');
         const roomIdInput = document.getElementById('room-id-input');
-        // playerNameInput removed; we will use logged username instead
         const joinRoomBtn = document.getElementById('join-room-btn');
         const lobbyStatus = document.getElementById('lobby-status');
         const loggedUsernameDisplay = document.getElementById('logged-username-display');
-
         const setupScreen = document.getElementById('setup-screen');
         const mainGame = document.getElementById('main-game');
         const summaryScreen = document.getElementById('game-summary-screen'); 
-        
         const setupMessage = document.getElementById('setup-message');
         const p1SetupDiv = document.getElementById('setup-player1');
         const p2SetupDiv = document.getElementById('setup-player2');
         const actionButton = document.getElementById('action-button');
         const gameStatus = document.getElementById('game-status');
-        
         const setupInputsP1 = document.querySelectorAll('#setup-player1 input');
         const setupInputsP2 = document.querySelectorAll('#setup-player2 input');
-        
         const dice1Display = document.getElementById('dice1-display');
         const dice2Display = document.getElementById('dice2-display');
         const resultTotals = document.getElementById('result-totals');
         const rollDetails = document.getElementById('roll-details');
         const summaryActionButton = document.getElementById('summary-action-button');
-        
-        // NUEVO ELEMENTO DEL SETUP
         const leaveRoomBtn = document.getElementById('leave-room-btn'); 
-
-        // NUEVOS ELEMENTOS DEL LOBBY
         const roomsList = document.getElementById('rooms-list');
         const roomsCount = document.getElementById('rooms-count');
         
-        // --- UTILIDADES DE SESIÓN / AUTH ---
+        // --- UTILIDADES ---
         function showAuthLogin() {
             authLoginScreen.classList.remove('hidden');
             authRegisterScreen.classList.add('hidden');
@@ -326,17 +310,14 @@
         function showLobbyScreen() {
             authLoginScreen.classList.add('hidden');
             authRegisterScreen.classList.add('hidden');
-
             mainGame.classList.add('hidden');
             summaryScreen.classList.add('hidden');
             setupScreen.classList.add('hidden');
             lobbyScreen.classList.remove('hidden');
-
             joinRoomBtn.disabled = false;
             roomIdInput.disabled = false;
             lobbyStatus.textContent = '';
         }
-
         function showSetupScreen() {
             authLoginScreen.classList.add('hidden');
             authRegisterScreen.classList.add('hidden');
@@ -344,10 +325,8 @@
             setupScreen.classList.remove('hidden');
             mainGame.classList.add('hidden');
             summaryScreen.classList.add('hidden');
-            
-            updateLeaveButtonState(); // Llamar al actualizar la pantalla de setup
+            updateLeaveButtonState();
         }
-
         function startGame() {
             authLoginScreen.classList.add('hidden');
             authRegisterScreen.classList.add('hidden');
@@ -356,9 +335,7 @@
             summaryScreen.classList.add('hidden');
             mainGame.classList.remove('hidden');
         }
-
         function showSummaryScreen() {
-            // 🔧 RESET REAL DEL BOTÓN
             localPlayerReadyForNewGame = false;
             summaryActionButton.removeAttribute('disabled');
             summaryActionButton.disabled = false;
@@ -371,14 +348,11 @@
             mainGame.classList.add('hidden');
             summaryScreen.classList.remove('hidden');
             
-            // Populate summary details
             document.getElementById('final-p1-score').textContent = localGame.p1.score;
             document.getElementById('final-p2-score').textContent = localGame.p2.score;
             document.getElementById('final-p1-name').textContent = localGame.p1.name;
             document.getElementById('final-p2-name').textContent = localGame.p2.name;
 
-
-            // Determine winner
             let winnerMessage = '';
             if (localGame.p1.score > localGame.p2.score) {
                 winnerMessage = `**${localGame.p1.name} WINS** with a score of ${localGame.p1.score}-${localGame.p2.score}!`;
@@ -389,30 +363,26 @@
             }
             document.getElementById('final-winner-message').innerHTML = winnerMessage;
             
-            // Display final tactics
             document.getElementById('final-p1-stats').innerHTML = `D: <span>${localGame.p1.D}</span> M: <span>${localGame.p1.M}</span> A: <span>${localGame.p1.A}</span>`;
             document.getElementById('final-p2-stats').innerHTML = `D: <span>${localGame.p2.D}</span> M: <span>${localGame.p2.M}</span> A: <span>${localGame.p2.A}</span>`;
 
-            // Set button state and action based on readiness
             const localReady = (playerRole === 1) ? localGame.p1ReadyForNewGame : localGame.p2ReadyForNewGame;
             const otherAbandoned = (playerRole === 1) ? localGame.abandonedBy === 'p2' : localGame.abandonedBy === 'p1';
 
             if (otherAbandoned) {
-                 // Si el oponente abandonó, el botón ya no sirve (la redirección es automática).
                  summaryActionButton.textContent = "Opponent Abandoned. Waiting for redirection...";
                  summaryActionButton.disabled = false;
             } else if (localReady) {
                 summaryActionButton.textContent = "Waiting for Opponent...";
                 summaryActionButton.disabled = false;
             } else {
-                let timestamp = Date.now();
-                summaryActionButton.textContent = "Start New Game " + timestamp;
+                summaryActionButton.textContent = "Start New Game";
                 summaryActionButton.disabled = false;
             }
             summaryActionButton.onclick = handleStartNewGameClick;
         }
         
-        // --- MANEJADORES DE AUTH (login/register) ---
+        // --- MANEJADORES DE AUTH ---
         authGoRegister.onclick = (e) => { e.preventDefault(); showAuthRegister(); };
         authGoLogin.onclick = (e) => { e.preventDefault(); showAuthLogin(); };
 
@@ -420,14 +390,8 @@
             const u = authRegUsername.value.trim();
             const p = authRegPassword.value.trim();
             authRegisterStatus.style.color = 'red';
-            if (!u || !p) {
-                authRegisterStatus.textContent = 'Completa todos los campos.';
-                return;
-            }
-            if (p.length < 6) {
-                authRegisterStatus.textContent = 'La contraseña debe tener al menos 6 caracteres.';
-                return;
-            }
+            if (!u || !p) return authRegisterStatus.textContent = 'Completa todos los campos.';
+            if (p.length < 6) return authRegisterStatus.textContent = 'La contraseña debe tener al menos 6 caracteres.';
             authRegisterStatus.textContent = 'Registrando...';
             try {
                 const res = await fetch('/register', {
@@ -440,27 +404,19 @@
                     authRegisterStatus.style.color = 'green';
                     authRegisterStatus.textContent = 'Registro exitoso. Redirigiendo al login...';
                     setTimeout(() => {
-                        authRegUsername.value = '';
-                        authRegPassword.value = '';
-                        showAuthLogin();
+                        authRegUsername.value = ''; authRegPassword.value = ''; showAuthLogin();
                     }, 1200);
                 } else {
                     authRegisterStatus.textContent = data.error || 'Error en el registro.';
                 }
-            } catch (err) {
-                console.error('register error', err);
-                authRegisterStatus.textContent = 'Error de conexión al servidor.';
-            }
+            } catch (err) { authRegisterStatus.textContent = 'Error de conexión.'; }
         };
 
         authLoginBtn.onclick = async () => {
             const u = authLoginUsername.value.trim();
             const p = authLoginPassword.value.trim();
             authLoginStatus.style.color = 'red';
-            if (!u || !p) {
-                authLoginStatus.textContent = 'Completa usuario y contraseña.';
-                return;
-            }
+            if (!u || !p) return authLoginStatus.textContent = 'Completa usuario y contraseña.';
             authLoginStatus.textContent = 'Iniciando sesión...';
             try {
                 const res = await fetch('/login', {
@@ -470,185 +426,100 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    // Guardar usuario y mostrar lobby
                     localStorage.setItem(PLAYER_NAME_KEY, data.username);
                     loggedUsernameDisplay.textContent = data.username;
-                    authLoginUsername.value = '';
-                    authLoginPassword.value = '';
-                    authLoginStatus.textContent = '';
+                    authLoginUsername.value = ''; authLoginPassword.value = ''; authLoginStatus.textContent = '';
                     showLobbyScreen();
                 } else {
-                    authLoginStatus.textContent = data.error || 'Usuario o contraseña incorrectos.';
+                    authLoginStatus.textContent = data.error || 'Incorrecto.';
                 }
-            } catch (err) {
-                console.error('login error', err);
-                authLoginStatus.textContent = 'Error de conexión al servidor.';
-            }
+            } catch (err) { authLoginStatus.textContent = 'Error de conexión.'; }
         };
-
-        // Logout (desde lobby)
-        function logout() {
-            localStorage.removeItem(PLAYER_NAME_KEY);
-            loggedUsernameDisplay.textContent = '-';
-            // Return to login screen
-            showAuthLogin();
-        }
 
         // --- MANEJADORES DE LOBBY ---
         function handleJoinRoom(autoJoin = false, storedRoomId = null, storedName = null) {
             let roomId, playerName;
-
             if (autoJoin) {
-                // Lógica para re-unirse (usado solo en refresh)
-                roomId = storedRoomId;
-                playerName = storedName || 'Jugador Reconectado';
+                roomId = storedRoomId; playerName = storedName || 'Jugador Reconectado';
             } else {
                 roomId = roomIdInput.value.trim().toUpperCase();
-                // Obtener el nombre desde localStorage (ya no desde input)
                 playerName = localStorage.getItem(PLAYER_NAME_KEY) || '';
-                if (roomId.length < 3) {
-                    lobbyStatus.textContent = "El ID de Sala debe tener al menos 3 caracteres.";
-                    return;
-                }
-                if (!playerName) {
-                    lobbyStatus.textContent = "Debes iniciar sesión antes de entrar a una sala.";
-                    showAuthLogin();
-                    return;
-                }
+                if (roomId.length < 3) return lobbyStatus.textContent = "ID de Sala: mín 3 caracteres.";
+                if (!playerName) { lobbyStatus.textContent = "Inicia sesión primero."; showAuthLogin(); return; }
             }
-            
-            // --- PERSISTENCE: Save name before join to handle re-join ---
             localStorage.setItem(PLAYER_NAME_KEY, playerName);
-
-            currentRoomId = roomId; // Establecer el ID de sala localmente
-            
-            // Deshabilitar UI durante la conexión
-            joinRoomBtn.disabled = true;
-            roomIdInput.disabled = true;
-            lobbyStatus.textContent = `Intentando unirse/crear Sala: ${roomId} como ${playerName}...`;
-            
-            socket.emit('joinRoom', roomId, playerName); // Enviar nombre al servidor
+            currentRoomId = roomId;
+            joinRoomBtn.disabled = true; roomIdInput.disabled = true;
+            lobbyStatus.textContent = `Uniéndose a: ${roomId}...`;
+            socket.emit('joinRoom', roomId, playerName);
         }
-
-        // Función para unirse a una sala existente desde la lista
         function joinExistingRoom(roomId) {
             const storedName = localStorage.getItem(PLAYER_NAME_KEY);
-            if (!storedName) {
-                lobbyStatus.textContent = "Por favor, inicia sesión antes de unirte.";
-                showAuthLogin();
-                return;
-            }
-            roomIdInput.value = roomId; // Pre-llenar el input para la lógica de handleJoinRoom
-            handleJoinRoom(false);
+            if (!storedName) { lobbyStatus.textContent = "Inicia sesión primero."; showAuthLogin(); return; }
+            roomIdInput.value = roomId; handleJoinRoom(false);
         }
-
-        // --- LÓGICA DE SALIR DE LA SALA (NUEVO) ---
         function handleLeaveRoomClick() {
             if (currentRoomId && playerRole !== 0) {
                 leaveRoomBtn.textContent = 'Saliendo...';
-                //leaveRoomBtn.disabled = true;
                 socket.emit('leaveRoom');
             }
         }
-        
         function updateLeaveButtonState() {
             if (!leaveRoomBtn || !localGame.playerCount) return;
-            
             const isSinglePlayer = localGame.playerCount === 1;
-            
-            if (isSinglePlayer) {
-                leaveRoomBtn.removeAttribute('disabled');
-                leaveRoomBtn.disabled = false;
-                leaveRoomBtn.textContent = 'Salir de la Sala y Volver al Lobby';
-            } else if (localGame.playerCount === 2) {
-                leaveRoomBtn.removeAttribute('disabled');
-                leaveRoomBtn.disabled = false;
-                leaveRoomBtn.textContent = 'Salir de la Sala (Room Llena - ¡Juego a punto de comenzar!)';
-            } else {
-                
-                leaveRoomBtn.removeAttribute('disabled');
-                leaveRoomBtn.disabled = false;
-                leaveRoomBtn.textContent = 'Saliendo de la Sala...';
-            }
+            leaveRoomBtn.removeAttribute('disabled'); leaveRoomBtn.disabled = false;
+            leaveRoomBtn.textContent = isSinglePlayer ? 'Salir de la Sala y Volver al Lobby' : 'Salir de la Sala';
         }
-        // --- FIN: LÓGICA DE SALIR DE LA SALA ---
 
-        // --- LÓGICA DE JUEGO (CLIENTE) ---
-
+        // --- LÓGICA DE JUEGO ---
         function lockSetup(playerNum) {
             if (playerNum !== playerRole || currentRoomId === null) return; 
-
             const d = parseInt(document.getElementById(`p${playerNum}-d`).value) || 0;
             const m = parseInt(document.getElementById(`p${playerNum}-m`).value) || 0;
             const a = parseInt(document.getElementById(`p${playerNum}-a`).value) || 0;
-
             if (d + m + a !== RULES_MAX_POINTS) return;
-
-            // Deshabilita los inputs y el botón localmente
             document.getElementById(`p${playerRole}-d`).disabled = true;
             document.getElementById(`p${playerRole}-m`).disabled = true;
             document.getElementById(`p${playerRole}-a`).disabled = true;
             document.getElementById(`p${playerRole}-setup-btn`).disabled = true;
             document.getElementById(`p${playerRole}-setup-btn`).textContent = 'Locked!';
-
             socket.emit('setup', { role: playerRole, d, m, a }); 
         }
 
         function handleRoll() {
-            if (localGame.gameOver || currentRoomId === null) return; 
+            if (localGame.gameOver || currentRoomId === null) return;
             socket.emit('rollAction'); 
         }
 
         function handleStartNewGameClick() {
             if (localPlayerReadyForNewGame || currentRoomId === null) return;
-
             localPlayerReadyForNewGame = true;
-
             summaryActionButton.textContent = "Waiting for Opponent...";
             summaryActionButton.setAttribute('disabled', 'true');
-
             socket.emit('playerReadyForNewGame');
-    }
+        }
 
         function checkTotal(playerNum) {
-            // Esta función solo debe validar la entrada del jugador local.
             if (playerNum !== playerRole && playerRole !== 0) return; 
-            
-            const dInput = document.getElementById(`p${playerNum}-d`);
-            const mInput = document.getElementById(`p${playerNum}-m`);
-            const aInput = document.getElementById(`p${playerNum}-a`);
-            
-            const d = parseInt(dInput.value) || 0;
-            const m = parseInt(mInput.value) || 0;
-            const a = parseInt(aInput.value) || 0;
-            
+            const d = parseInt(document.getElementById(`p${playerNum}-d`).value) || 0;
+            const m = parseInt(document.getElementById(`p${playerNum}-m`).value) || 0;
+            const a = parseInt(document.getElementById(`p${playerNum}-a`).value) || 0;
             const total = d + m + a;
             const totalDisplay = document.getElementById(`p${playerNum}-total`);
             const button = document.getElementById(`p${playerNum}-setup-btn`); 
-
             totalDisplay.textContent = `Total: ${total}/${RULES_MAX_POINTS}`;
-
-            const isValid = total === RULES_MAX_POINTS && d <= RULES_MAX_STAT_D && m <= RULES_MAX_STAT_M && a <= RULES_MAX_STAT_A &&
-                            d >= RULES_MIN_STAT_D && m >= RULES_MIN_STAT_M && a >= RULES_MIN_STAT_A;
-
+            const isValid = total === RULES_MAX_POINTS && d <= RULES_MAX_STAT_D && m <= RULES_MAX_STAT_M && a <= RULES_MAX_STAT_A && d >= RULES_MIN_STAT_D && m >= RULES_MIN_STAT_M && a >= RULES_MIN_STAT_A;
             if (isValid) {
                 totalDisplay.style.color = 'var(--color-p1)';
-                
-                // Comprobamos si las tácticas ya fueron enviadas
                 const p = localGame[`p${playerNum}`] || {D:0, M:0, A:0};
                 const isTacticsSent = (p.D + p.M + p.A) === RULES_MAX_POINTS; 
-
-                if (!isTacticsSent && playerNum === playerRole) { // Solo habilitar si es el jugador local y no ha enviado
-                    button.disabled = false;
-                    button.textContent = 'Lock Tactics';
+                if (!isTacticsSent && playerNum === playerRole) { 
+                    button.disabled = false; button.textContent = 'Lock Tactics';
                 } else if (isTacticsSent) {
-                    button.disabled = true;
-                    button.textContent = 'Locked!';
+                    button.disabled = true; button.textContent = 'Locked!';
                 }
             } else {
-                totalDisplay.style.color = 'red';
-                button.disabled = true;
-                button.textContent = 'Lock Tactics';
+                totalDisplay.style.color = 'red'; button.disabled = true; button.textContent = 'Lock Tactics';
             }
         }
 
@@ -656,25 +527,19 @@
             const game = localGame;
             if (!game || !game.p1) return; 
 
-            // Scoreboard and Stats
             document.getElementById('p1-score').textContent = game.p1.score;
             document.getElementById('p2-score').textContent = game.p2.score;
             document.getElementById('p1-stats').innerHTML = `D: <span>${game.p1.D}</span> M: <span>${game.p1.M}</span> A: <span>${game.p1.A}</span>`;
             document.getElementById('p2-stats').innerHTML = `D: <span>${game.p2.D}</span> M: <span>${game.p2.M}</span> A: <span>${game.p2.A}</span>`;
             
-            // Player Names
             document.getElementById('p1-name').textContent = `${game.p1.name} ${playerRole === 1 ? '(YOU)' : ''}`;
             document.getElementById('p2-name').textContent = `${game.p2.name} ${playerRole === 2 ? '(YOU)' : ''}`;
             document.getElementById('p1-name-setup').textContent = game.p1.name;
             document.getElementById('p2-name-setup').textContent = game.p2.name;
             
-            // Phase
             document.getElementById('phase-display').textContent = `Phase ${game.currentPhase} / ${RULES_MAX_PHASES}`;
-            
-            // Status Message
             gameStatus.innerHTML = game.statusMessage;
 
-            // Pitch Marker Logic
             document.getElementById('p2-g-area').classList.remove('active');
             document.getElementById('p2-a-area').classList.remove('active');
             document.getElementById('m-area').classList.remove('active');
@@ -690,43 +555,50 @@
             let marker = document.getElementById('ball-marker');
             if (!areaElement.contains(marker)) { areaElement.appendChild(marker); }
 
-
-            // Dice Rolls Display
             const bothPlayersRolled = game.p1Rolled && game.p2Rolled;
             dice1Display.textContent = game.lastRoll.roll1; 
             dice2Display.textContent = game.lastRoll.roll2; 
 
             if (game.lastRoll.details) {
                 rollDetails.textContent = game.lastRoll.details; 
-                
                 const modifier1 = game.lastRoll.total1 - (game.lastRoll.roll1 === '?' ? 0 : parseInt(game.lastRoll.roll1));
                 const modifier2 = game.lastRoll.total2 - (game.lastRoll.roll2 === '?' ? 0 : parseInt(game.lastRoll.roll2));
-
                 resultTotals.innerHTML = `
                     **P1:** ${game.lastRoll.roll1} (Dado) + ${modifier1} (Táctica) = **${game.lastRoll.total1}** <br>
                     **P2:** ${game.lastRoll.roll2} (Dado) + ${modifier2} (Táctica) = **${game.lastRoll.total2}**
                 `;
             } else { 
-                rollDetails.textContent = 'Rolls:';
-                resultTotals.innerHTML = `P1 Total: ? | P2 Total: ?`; 
+                rollDetails.textContent = 'Rolls:'; resultTotals.innerHTML = `P1 Total: ? | P2 Total: ?`; 
             }
 
-            // Button Control
+            // --- LÓGICA DE BOTONES (ACTUALIZADA) ---
             const isLocalPlayerRolled = playerRole === 1 ? game.p1Rolled : game.p2Rolled;
-            // const isOpponentRolled = playerRole === 1 ? game.p2Rolled : game.p1Rolled;
-
+            
             let buttonText = "Roll Dice";
             let buttonDisabled = false;
+
+            // Verificar si yo ya confirmé ir a la siguiente ronda
+            const localConfirmedNext = (playerRole === 1) ? game.p1ConfirmedNext : game.p2ConfirmedNext;
 
             if (game.gameOver || !game.isSetupComplete || game.playerCount < 2) {
                 buttonDisabled = true;
                 if (game.gameOver) buttonText = "MATCH OVER";
                 else if (game.playerCount < 2) buttonText = "Waiting for Opponent...";
                 else buttonText = "Waiting for Kick Off...";
-            } else if (bothPlayersRolled) {
-                buttonText = "Next Confrontation";
-                buttonDisabled = false;
-            } else if (isLocalPlayerRolled) {
+            } 
+            else if (bothPlayersRolled) {
+                // Si ambos tiraron, mostramos el botón Next Confrontation
+                if (localConfirmedNext) {
+                    // Si ya hice click, espero al otro
+                    buttonText = "Waiting for Opponent...";
+                    buttonDisabled = true;
+                } else {
+                    // Si no he hecho click, lo habilito
+                    buttonText = "Next Confrontation";
+                    buttonDisabled = false;
+                }
+            } 
+            else if (isLocalPlayerRolled) {
                 const opponentName = (playerRole === 1) ? game.p2.name : game.p1.name;
                 buttonText = `Waiting for ${opponentName}...`;
                 buttonDisabled = true;
@@ -749,7 +621,6 @@
             actionButton.textContent = buttonText;
             actionButton.disabled = buttonDisabled;
 
-            // Highlighting the current player's card
             document.getElementById('player1-card').style.boxShadow = '';
             document.getElementById('player2-card').style.boxShadow = '';
             if (game.attacker) {
@@ -758,41 +629,30 @@
             }
         }
         
-        // --- CONFIGURACIÓN DE SOCKETS (CLIENTE) ---
-        
-        // 1. Asignación de rol
+        // --- SOCKET HANDLERS ---
         socket.on('roleAssignment', (role, p1Name, p2Name) => {
             playerRole = role;
-            
-            // --- PERSISTENCE: Save session data (uses sessionStorage and localStorage) ---
             const localName = localStorage.getItem(PLAYER_NAME_KEY) || (role === 1 ? p1Name : p2Name);
             saveSession(currentRoomId, role, localName);
             
-            // Actualizar nombres en inputs de setup (para que el checkTotal funcione con el nombre)
             document.getElementById('p1-name-setup').textContent = p1Name;
             document.getElementById('p2-name-setup').textContent = p2Name;
             
-            // Asignar el div de setup visible y deshabilitar el otro
             if (playerRole === 1) {
                 setupInputsP2.forEach(input => input.disabled = true);
-                p2SetupDiv.classList.add('hidden');
-                p1SetupDiv.classList.remove('hidden');
-                setupInputsP1.forEach(input => input.disabled = false); // Habilitar inputs locales
+                p2SetupDiv.classList.add('hidden'); p1SetupDiv.classList.remove('hidden');
+                setupInputsP1.forEach(input => input.disabled = false);
             } else {
                 setupInputsP1.forEach(input => input.disabled = true);
-                p1SetupDiv.classList.add('hidden');
-                p2SetupDiv.classList.remove('hidden');
-                setupInputsP2.forEach(input => input.disabled = false); // Habilitar inputs locales
+                p1SetupDiv.classList.add('hidden'); p2SetupDiv.classList.remove('hidden');
+                setupInputsP2.forEach(input => input.disabled = false);
             }
-            
             checkTotal(playerRole); 
             showSetupScreen();
         });
         
-        // 2. Recepción de estado del juego desde el servidor
         socket.on('stateUpdate', (serverGame) => {
             localGame = serverGame;
-
             const p1Submitted = (serverGame.p1.D + serverGame.p1.M + serverGame.p1.A) === RULES_MAX_POINTS;
             const p2Submitted = (serverGame.p2.D + serverGame.p2.M + serverGame.p2.A) === RULES_MAX_POINTS;
             const isAllTacticsSubmitted = p1Submitted && p2Submitted;
@@ -800,135 +660,71 @@
             if (serverGame.gameOver) {
                 showSummaryScreen(); 
             } else if (!isAllTacticsSubmitted && currentRoomId !== null && playerRole !== 0) {
-                
                 localPlayerReadyForNewGame = false;
                 summaryActionButton.removeAttribute('disabled');
-
-                // --- FIX: HABILITAR INPUTS DE TÁCTICAS AL VOLVER AL SETUP TRAS UN RESET ---
-                const localPlayerStat = serverGame[`p${playerRole}`];
                 const pRole = playerRole;
-
-                // Re-habilitar los inputs, ya que el servidor ha reseteado el estado.
                 document.getElementById(`p${pRole}-d`).disabled = false;
                 document.getElementById(`p${pRole}-m`).disabled = false;
                 document.getElementById(`p${pRole}-a`).disabled = false;
-                
-                // Actualizar los valores de los inputs con los valores del servidor (D:0, M:0, A:0)
-                //document.getElementById(`p${pRole}-d`).value = localPlayerStat.D; 
-                //document.getElementById(`p${pRole}-m`).value = localPlayerStat.M;
-                //document.getElementById(`p${pRole}-a`).value = localPlayerStat.A;
-                
-                // Resetear el texto del botón (checkTotal se encargará de habilitarlo/deshabilitarlo)
                 document.getElementById(`p${pRole}-setup-btn`).textContent = 'Lock Tactics';
-                // --- FIN FIX ---
-
                 showSetupScreen();
-                
-                // Mostrar mensaje de setup
                 if (serverGame.playerCount < 2) {
                     setupMessage.innerHTML = `Conectado a Sala **${currentRoomId}** como ${localGame[`p${playerRole}`].name}. Esperando al oponente...`;
                 } else if (serverGame.playerCount === 2) {
                     const localPlayerSubmitted = playerRole === 1 ? p1Submitted : p2Submitted;
                     const opponentName = (playerRole === 1) ? localGame.p2.name : localGame.p1.name;
-                    
-                    if (localPlayerSubmitted) {
-                        setupMessage.textContent = `Tácticas enviadas. Esperando la configuración de ${opponentName}...`;
-                    } else {
-                        setupMessage.textContent = `${localGame[`p${playerRole}`].name}, configura tus ${RULES_MAX_POINTS} puntos y presiona "Lock Tactics".`;
-                    }
+                    if (localPlayerSubmitted) setupMessage.textContent = `Tácticas enviadas. Esperando a ${opponentName}...`;
+                    else setupMessage.textContent = `${localGame[`p${playerRole}`].name}, configura tus puntos.`;
                 }
-                
-                // checkTotal ahora re-evaluará el estado inicial (0 puntos, inhabilitando el botón)
-                // forzando al jugador a re-introducir los 10 puntos.
                 checkTotal(playerRole); 
                 updateLeaveButtonState(); 
             } else if (isAllTacticsSubmitted) {
                 startGame();
             }
-            
             updateDisplay();
         });
         
-        // 3. Juego lleno o error al unirse
         socket.on('gameFull', () => {
-            lobbyStatus.textContent = "La sala está llena o tu sesión expiró. Intenta con otro ID.";
-            joinRoomBtn.disabled = false;
-            roomIdInput.disabled = false;
-            
-            // --- PERSISTENCE: Clear session if re-join failed (clears sessionStorage) ---
+            lobbyStatus.textContent = "Sala llena o sesión expirada.";
+            joinRoomBtn.disabled = false; roomIdInput.disabled = false;
             clearSession(); 
-            // si no hay usuario, retornar al login
             const storedName = localStorage.getItem(PLAYER_NAME_KEY);
             if (!storedName) showAuthLogin();
         });
 
-        // 4. El servidor nos informa que el juego terminó 
-        socket.on('gameEnd', (message) => {
-             console.log(message);
-        });
-        
-        // 5. Evento para manejar el inicio rápido de juego cuando el oponente abandona
         socket.on('goToSetup', (updatedGame) => {
             localGame = updatedGame;
-            
-            // --- INICIO: LÓGICA DE TIMEOUT DE REDIRECCIÓN DE 3 SEGUNDOS ---
             const REDIRECTION_DELAY = 3000;
-            const redirectionMessage = `Oponente abandonó. Redireccionando a la configuración en ${REDIRECTION_DELAY / 1000} segundos...`;
-            
-            // Actualizar la pantalla de resumen para mostrar el mensaje de espera
+            const redirectionMessage = `Oponente abandonó. Redireccionando en ${REDIRECTION_DELAY / 1000}s...`;
             if (!summaryScreen.classList.contains('hidden')) {
                 document.getElementById('final-winner-message').innerHTML = '<span style="color: red; font-size: 1.2em;">' + redirectionMessage + '</span>';
                 summaryActionButton.disabled = false;
                 summaryActionButton.textContent = "Redirecting...";
             }
-            
             setTimeout(() => {
-                // Restaurar inputs y botón de setup
                 const p = localGame[`p${playerRole}`];
-                const dInput = document.getElementById(`p${playerRole}-d`);
-                const mInput = document.getElementById(`p${playerRole}-m`);
-                const aInput = document.getElementById(`p${playerRole}-a`);
-                const setupBtn = document.getElementById(`p${playerRole}-setup-btn`); 
-
-                dInput.disabled = false; 
-                mInput.disabled = false;
-                aInput.disabled = false;
-                setupBtn.textContent = 'Lock Tactics'; 
-
-                dInput.value = p.D; 
-                mInput.value = p.M;
-                aInput.value = p.A;
-
+                document.getElementById(`p${playerRole}-d`).disabled = false; 
+                document.getElementById(`p${playerRole}-m`).disabled = false;
+                document.getElementById(`p${playerRole}-a`).disabled = false;
+                document.getElementById(`p${playerRole}-setup-btn`).textContent = 'Lock Tactics'; 
+                document.getElementById(`p${playerRole}-d`).value = p.D; 
+                document.getElementById(`p${playerRole}-m`).value = p.M;
+                document.getElementById(`p${playerRole}-a`).value = p.A;
                 localPlayerReadyForNewGame = false; 
                 checkTotal(playerRole); 
-                
-                if (summaryActionButton) {
-                    summaryActionButton.disabled = false;
-                    summaryActionButton.innerText = 'Start New Game';
-                }
-                
-                showSetupScreen(); 
-                updateDisplay();
+                if (summaryActionButton) { summaryActionButton.disabled = false; summaryActionButton.innerText = 'Start New Game'; }
+                showSetupScreen(); updateDisplay();
             }, REDIRECTION_DELAY);
-            // --- FIN: LÓGICA DE TIMEOUT DE REDIRECCIÓN DE 3 SEGUNDOS ---
         });
         
-        // 6. Evento para volver al lobby de forma controlada (NUEVO)
-        socket.on('goToLobby', () => {
-            clearSession();
-            showLobbyScreen();
-        });
+        socket.on('goToLobby', () => { clearSession(); showLobbyScreen(); });
         
-        // 7. Lista de Salas Activas
         socket.on('activeRoomsList', (activeRooms) => {
-            roomsList.innerHTML = ''; 
-            roomsCount.textContent = activeRooms.length;
-
+            roomsList.innerHTML = ''; roomsCount.textContent = activeRooms.length;
             if (activeRooms.length === 0) {
                 roomsList.innerHTML = '<li style="color: #666;">No hay salas disponibles. Crea una!</li>';
                 return;
             }
-
             activeRooms.forEach(roomId => {
                 const listItem = document.createElement('li');
                 listItem.style.marginBottom = '5px';
@@ -937,95 +733,48 @@
             });
         });
 
-
-        // --- ASIGNACIÓN DE MANEJADORES DE EVENTOS ---
-        
-        // Lobby
+        // --- ASIGNACIONES ---
         joinRoomBtn.onclick = () => handleJoinRoom(false, null, null);
-        
-        // Setup inputs
         document.getElementById('p1-d').oninput = () => checkTotal(1);
         document.getElementById('p1-m').oninput = () => checkTotal(1);
         document.getElementById('p1-a').oninput = () => checkTotal(1);
         document.getElementById('p2-d').oninput = () => checkTotal(2);
         document.getElementById('p2-m').oninput = () => checkTotal(2);
         document.getElementById('p2-a').oninput = () => checkTotal(2);
-
-        // Setup buttons
         document.getElementById('p1-setup-btn').onclick = () => lockSetup(1);
         document.getElementById('p2-setup-btn').onclick = () => lockSetup(2);
-
-        // Action button
         document.getElementById('action-button').onclick = handleRoll;
-        
-        // Leave room button (NUEVO)
         leaveRoomBtn.onclick = handleLeaveRoomClick;
 
-        // Logout button from lobby
-        // create logout button dynamically reference if exists
-        // We'll attach to lobby screen as a floating action if needed
-        // (The original index had no logout button; we use localStorage removal)
-        
-        // Initial load
         document.addEventListener('DOMContentLoaded', () => {
-            // Leer la sesión persistente (Room ID y Rol) de sessionStorage (solo en refresh)
             const storedRoomId = sessionStorage.getItem(ROOM_ID_KEY);
             const storedRole = sessionStorage.getItem(ROLE_KEY);
-            
-            // Leer el nombre (por conveniencia) de localStorage (persiste siempre)
             const storedName = localStorage.getItem(PLAYER_NAME_KEY);
+            if (storedName) loggedUsernameDisplay.textContent = storedName;
+            else loggedUsernameDisplay.textContent = '-';
 
-            // Si hay un usuario autenticado, mostrar su nombre en el lobby display
-            if (storedName) {
-                loggedUsernameDisplay.textContent = storedName;
-            } else {
-                loggedUsernameDisplay.textContent = '-';
-            }
-
-            // 1. RECONEXIÓN AUTOMÁTICA (si hay datos en sessionStorage)
             if (storedRoomId && storedRole && storedName) { 
-                console.log(`Found session for Room: ${storedRoomId}. Attempting to rejoin...`);
-                
-                // Precargar el ID de sala y nombre en el lobby
                 roomIdInput.value = storedRoomId;
-                
-                // Establecer el estado local para la conexión
                 currentRoomId = storedRoomId;
                 playerRole = parseInt(storedRole); 
-                
-                // Intentar reconectar automáticamente
                 handleJoinRoom(true, storedRoomId, storedName); 
             } else {
-                // 2. MOSTRAR LOBBY o LOGIN (si no hay usuario autenticado)
-                if (storedName) {
-                    showLobbyScreen();
-                } else {
-                    showAuthLogin();
-                }
-                
-                // Pre-llenar el nombre si existe (no hay campo de nombre)
+                if (storedName) showLobbyScreen();
+                else showAuthLogin();
             }
-            
-            // Inicializar las comprobaciones de total para el formulario de setup
-            checkTotal(1); 
-            checkTotal(2);
+            checkTotal(1); checkTotal(2);
         });
 
-        // --- SESSION HELPERS ---
         function saveSession(roomId, role, name) {
             if (roomId) sessionStorage.setItem(ROOM_ID_KEY, roomId);
             if (role) sessionStorage.setItem(ROLE_KEY, role);
             if (name) localStorage.setItem(PLAYER_NAME_KEY, name);
             currentRoomId = roomId;
         }
-
         function clearSession() {
-            sessionStorage.removeItem(ROOM_ID_KEY);
-            sessionStorage.removeItem(ROLE_KEY);
-            currentRoomId = null;
-            playerRole = 0;
+            sessionStorage.removeItem(ROOM_ID_KEY); sessionStorage.removeItem(ROLE_KEY);
+            currentRoomId = null; playerRole = 0;
         }
-
     </script>
 </body>
 </html>

@@ -1,14 +1,13 @@
-// server.js (MODIFICADO - LOGIN / REGISTER agregado)
+// server.js (MODIFICADO - LOGICA NEXT CONFRONTATION INDIVIDUAL)
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
 
-// --- NUEVOS REQUERIMIENTOS PARA AUTH ---
+// --- REQUERIMIENTOS PARA AUTH ---
 const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
 const { Pool } = require('pg');
-// --- FIN: NUEVOS REQUERIMIENTOS ---
 
 const app = express();
 const server = http.createServer(app);
@@ -21,9 +20,8 @@ const io = socketIo(server, {
     }
 });
 
-// --- MIDDLEWARES NUEVOS ---
-app.use(bodyParser.json()); // para parsear JSON en endpoints de login/register
-// --- FIN MIDDLEWARES ---
+// --- MIDDLEWARES ---
+app.use(bodyParser.json()); 
 
 app.use('/socket.io', express.static(path.join(__dirname, 'node_modules/socket.io/client-dist'))); 
 app.use(express.static(path.join(__dirname, 'public'))); 
@@ -31,7 +29,7 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// === CONFIGURACIÓN POSTGRESQL (según datos proporcionados) ===
+// === CONFIGURACIÓN POSTGRESQL ===
 const pool = new Pool({
     user: 'postgres',
     host: 'localhost',
@@ -39,33 +37,26 @@ const pool = new Pool({
     password: 'postgres',
     port: 5432,
 });
-// ============================================================
 
 // === ENDPOINTS DE AUTENTICACIÓN ===
-// Registro: guarda username + password_hash (bcrypt)
 app.post('/register', async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) {
         return res.status(400).json({ success: false, error: 'Faltan campos: username y password son requeridos.' });
     }
-
     try {
-        // Validación mínima (puedes extenderla)
         if (typeof username !== 'string' || typeof password !== 'string') {
             return res.status(400).json({ success: false, error: 'Datos inválidos.' });
         }
         if (password.length < 6) {
             return res.status(400).json({ success: false, error: 'La contraseña debe tener al menos 6 caracteres.' });
         }
-
         const hash = await bcrypt.hash(password, 10);
         const q = 'INSERT INTO players (username, password_hash) VALUES ($1, $2)';
         await pool.query(q, [username, hash]);
-
         return res.json({ success: true, message: 'Usuario registrado correctamente.' });
     } catch (err) {
         console.error('Error en /register:', err);
-        // Código 23505 = unique_violation en Postgres
         if (err.code === '23505') {
             return res.status(409).json({ success: false, error: 'El nombre de usuario ya existe.' });
         }
@@ -73,50 +64,40 @@ app.post('/register', async (req, res) => {
     }
 });
 
-// Login: valida username + password (bcrypt compare)
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) {
         return res.status(400).json({ success: false, error: 'Faltan credenciales.' });
     }
-
     try {
         const q = 'SELECT id, username, password_hash FROM players WHERE username = $1';
         const result = await pool.query(q, [username]);
-
         if (result.rows.length === 0) {
-            // No existe el usuario
             return res.status(401).json({ success: false, error: 'Usuario o contraseña incorrectos.' });
         }
-
         const user = result.rows[0];
         const match = await bcrypt.compare(password, user.password_hash);
         if (!match) {
             return res.status(401).json({ success: false, error: 'Usuario o contraseña incorrectos.' });
         }
-
-        // Login correcto. Respondemos con success y el username.
         return res.json({ success: true, username: user.username });
     } catch (err) {
         console.error('Error en /login:', err);
         return res.status(500).json({ success: false, error: 'Error interno del servidor.' });
     }
 });
-// === FIN ENDPOINTS DE AUTENTICACIÓN ===
 
 const PORT = 3000;
 const RULES_MAX_POINTS = 10;
 const RULES_MAX_STAT = 7;
 const RULES_MAX_PHASES = 1;
 
-// --- ESTRUCTURA DEL JUEGO AUTORITATIVA: MAPA DE SALAS ---
-let games = {}; // Almacena el estado de todos los juegos activos, indexados por roomId
+// --- ESTRUCTURA DEL JUEGO AUTORITATIVA ---
+let games = {}; 
 
 // === CONSTANTES PARA ABANDONO ===
-const ABANDONMENT_TIMEOUT_MS = 5000; // 5 segundos de gracia para reconexión
-let disconnectTimeouts = {}; // Almacena los timeouts, clave: "roomId_role"
-// === END: CONSTANTES PARA ABANDONO ===
-
+const ABANDONMENT_TIMEOUT_MS = 5000; 
+let disconnectTimeouts = {}; 
 
 function initializeGameState() {
     return {
@@ -133,11 +114,15 @@ function initializeGameState() {
         p2SocketId: null,
         p1Rolled: false, 
         p2Rolled: false,
+        // --- NUEVAS PROPIEDADES PARA CONTROLAR "NEXT CONFRONTATION" ---
+        p1ConfirmedNext: false, 
+        p2ConfirmedNext: false,
+        // -------------------------------------------------------------
         lastRoll: { roll1: '?', roll2: '?', total1: 0, total2: 0, details: '' },
         statusMessage: `**Esperando jugadores. Configura tus ${RULES_MAX_POINTS} puntos de táctica.**`,
         p1ReadyForNewGame: false,
         p2ReadyForNewGame: false,
-        abandonedBy: null, // 'p1', 'p2', o null. Jugador que abandonó.
+        abandonedBy: null, 
     };
 }
 
@@ -153,23 +138,19 @@ function resetGame(roomId) {
     const game = getGame(roomId);
     if (!game) return;
     
-    // 1. Almacenar los IDs de socket y los nombres
     const oldP1SocketId = game.p1SocketId;
     const oldP2SocketId = game.p2SocketId;
     const oldP1Name = game.p1.name; 
     const oldP2Name = game.p2.name; 
     
-    // 2. Reiniciar el estado del juego, limpiando variables como isSetupComplete, scores, etc.
     Object.assign(game, initializeGameState());
     
-    // 3. Restaurar los IDs de socket, nombres y conteo de jugadores
     game.p1SocketId = oldP1SocketId; 
     game.p2SocketId = oldP2SocketId;
     game.p1.name = oldP1Name; 
     game.p2.name = oldP2Name; 
     
     game.playerCount = (game.p1SocketId !== null ? 1 : 0) + (game.p2SocketId !== null ? 1 : 0);
-    
     game.statusMessage = `**Nueva partida. Configura tus ${RULES_MAX_POINTS} puntos de táctica.**`;
 }
 
@@ -207,23 +188,17 @@ function endGame(roomId) {
     io.to(roomId).emit('stateUpdate', game); 
 }
 
-/**
- * Filtra las salas que tienen espacio (playerCount < 2) y las emite a todos los clientes.
- */
 function broadcastActiveRooms() {
     const activeRooms = Object.keys(games).filter(roomId => games[roomId].playerCount < 2);
     io.emit('activeRoomsList', activeRooms);
 }
 
-
 // === LÓGICA DE ABANDONO ===
-
 function declareWinnerByAbandonment(roomId, abandoningRole) {
     const game = getGame(roomId);
     if (!game || game.gameOver) return;
 
     const winnerRole = (abandoningRole === 1) ? 2 : 1;
-    
     game.gameOver = true;
     game.abandonedBy = `p${abandoningRole}`;
     
@@ -232,10 +207,8 @@ function declareWinnerByAbandonment(roomId, abandoningRole) {
     const winnerName = winnerPlayer.name || `Player ${winnerRole}`;
     const loserName = loserPlayer.name || `Player ${abandoningRole}`;
 
-    //if (winnerPlayer.score <= loserPlayer.score) {
-        winnerPlayer.score = 5;
-        loserPlayer.score = 0;
-    //}
+    winnerPlayer.score = 5;
+    loserPlayer.score = 0;
 
     game.statusMessage = `**¡VICTORIA POR ABANDONO!** El jugador ${loserName} ha abandonado el partido. El jugador ${winnerName} gana.`;
     
@@ -253,8 +226,6 @@ function clearAbandonmentTimeout(roomId, playerRole) {
     }
     return false;
 }
-
-// === END: LÓGICA DE ABANDONO ===
 
 function resolveConfrontation(roomId) {
     const game = getGame(roomId);
@@ -293,7 +264,7 @@ function resolveConfrontation(roomId) {
                 game.statusMessage = `**GANADOR: ${attackerName}** (${game.lastRoll[`total${game.attacker}`]} > ${game.lastRoll[`total${game.defender}`]}). ¡**OPORTUNIDAD DE GOL**!`;
             } else if (winner === game.defender) {
                 game.statusMessage = `**GANADOR: ${defenderName}** (${game.lastRoll[`total${game.defender}`]} > ${game.lastRoll[`total${game.attacker}`]}). El balón vuelve al mediocampo. **Fase +1**!`;
-                endPhase(roomId); // Llamada con roomId
+                endPhase(roomId); 
             } else {
                 game.statusMessage = "**EMPATE:** El lado atacante retiene la posesión. ¡Vuelve a tirar!";
             }
@@ -304,10 +275,10 @@ function resolveConfrontation(roomId) {
             if (winner === game.attacker) {
                 game[`p${game.attacker}`].score++;
                 game.statusMessage = `**¡GOL** para ${attackerName}! La pelota vuelve al mediocampo. **Fase +1**!`;
-                endPhase(roomId); // Llamada con roomId
+                endPhase(roomId); 
             } else if (winner === game.defender) {
                 game.statusMessage = `**¡ATAJADA** de ${defenderName}! La pelota vuelve al mediocampo. **Fase +1**!`;
-                endPhase(roomId); // Llamada con roomId
+                endPhase(roomId); 
             } else {
                 game.statusMessage = "**EMPATE:** ¡El delantero sigue en el rebote! Vuelve a tirar!";
             }
@@ -324,17 +295,28 @@ function handleRoll(roomId, playerNum, socket) {
     const opponentNum = isP1 ? 2 : 1;
     const opponentSocketId = isP1 ? game.p2SocketId : game.p1SocketId;
     
-    // --- A. ACTION: ADVANCE/RE-ROLL ---
+    // --- A. ACTION: ADVANCE/RE-ROLL (MODIFICADO PARA CONFIRMACIÓN INDIVIDUAL) ---
     if (game.p1Rolled && game.p2Rolled) {
-        // Simplemente permitimos la nueva tirada limpiando las flags.
-        game.p1Rolled = false;
-        game.p2Rolled = false;
-        game.lastRoll = { roll1: '?', roll2: '?', total1: 0, total2: 0, details: '' };
-        
-        game.statusMessage = `**¡LISTO!** Comienza la siguiente confrontación.`;
-        if (game.ballArea === 'M') {
-             game.statusMessage = `**¡KICK OFF!** Tira para la batalla del mediocampo.`;
+        // Registrar que este jugador hizo click en "Next Confrontation"
+        if (isP1) {
+            game.p1ConfirmedNext = true;
+        } else {
+            game.p2ConfirmedNext = true;
         }
+
+        // Si AMBOS han confirmado, entonces limpiamos y avanzamos
+        if (game.p1ConfirmedNext && game.p2ConfirmedNext) {
+            game.p1Rolled = false;
+            game.p2Rolled = false;
+            game.p1ConfirmedNext = false; // Reset flags
+            game.p2ConfirmedNext = false; // Reset flags
+            game.lastRoll = { roll1: '?', roll2: '?', total1: 0, total2: 0, details: '' };
+            
+            game.statusMessage = `**¡LISTO!** Comienza la siguiente confrontación.`;
+            if (game.ballArea === 'M') {
+                 game.statusMessage = `**¡KICK OFF!** Tira para la batalla del mediocampo.`;
+            }
+        } 
         
         io.to(roomId).emit('stateUpdate', game);
         return; 
@@ -395,17 +377,16 @@ function handleRoll(roomId, playerNum, socket) {
         const selfName = self.name || `Jugador ${playerNum}`;
         const opponentName = game[`p${opponentNum}`].name || `Jugador ${opponentNum}`;
 
-        // Mensaje privado para el jugador que tiró (incluye su resultado)
+        // Mensaje privado para el jugador que tiró
         const selfMessage = `${selfName} ha tirado **${rollValue}** (+${modValue} = **${rollTotal}**). Esperando la tirada de ${opponentName}...`;
         
         // Mensaje para el oponente
         const opponentMessage = `${selfName} ha tirado. Es tu turno. ¡A rodar el dado!`;
 
-        // 2a. Enviar estado completo + mensaje al jugador que tiró
         game.statusMessage = selfMessage;
         socket.emit('stateUpdate', game); 
         
-        // 2b. Crear y enviar estado CENSURADO al oponente
+        // Estado CENSURADO al oponente
         if (opponentSocketId) {
             const opponentCensoredGame = JSON.parse(JSON.stringify(game));
             
@@ -425,34 +406,28 @@ function handleRoll(roomId, playerNum, socket) {
     }
 }
 
-// --- MANEJO DE CONEXIONES Y SOCKETS (LÓGICA DE SALAS) ---
+// --- MANEJO DE CONEXIONES ---
 io.on('connection', (socket) => {
     
     let role = 0;
     let currentRoomId = null; 
     let isReconnecting = false;
     
-    // ENVIAR LISTA DE SALAS AL CONECTARSE
     broadcastActiveRooms();
 
-    // 1. Manejar la solicitud para unirse o crear una sala
+    // 1. Unirse/Crear Sala
     socket.on('joinRoom', (roomId, playerName) => { 
         if (!roomId || currentRoomId) return; 
     
         let game = games[roomId];
         
-        // Crear sala si no existe
         if (!game) {
             game = initializeGameState();
             games[roomId] = game;
             console.log(`Sala ${roomId} creada.`);
         }
 
-        // =========================================================================
-        // === Priorizar la verificación de TIMEOUT para manejar el REFRESH ===
-        // =========================================================================
-        
-        // 1. Intentar RECONECTAR: Si existe un timeout de abandono para un slot, tomarlo y cancelarlo.
+        // Reconexión (Prioridad Timeout)
         if (clearAbandonmentTimeout(roomId, 1)) {
             role = 1;
             game.p1SocketId = socket.id;
@@ -465,7 +440,7 @@ io.on('connection', (socket) => {
             isReconnecting = true;
         } 
         
-        // 2. Si el rol no está asignado, ASIGNAR a un slot libre o identificar la conexión existente.
+        // Asignación de rol normal
         if (role === 0) {
             if (game.p1SocketId === null) {
                 role = 1;
@@ -476,30 +451,22 @@ io.on('connection', (socket) => {
                 game.p2SocketId = socket.id;
                 game.p2.name = playerName || 'Player 2';
             } else if (game.p1SocketId === socket.id) { 
-                role = 1; // El mismo socket se unió de nuevo
+                role = 1; 
             } else if (game.p2SocketId === socket.id) { 
-                role = 2; // El mismo socket se unió de nuevo
+                role = 2; 
             } else {
-                // Sala llena (Ambos slots ocupados y no hay timeouts pendientes)
                 socket.emit('gameFull'); 
                 return;
             }
         }
         
-        // =========================================================================
-        // === END: Priorizar la verificación de TIMEOUT para manejar el REFRESH ===
-        // =========================================================================
-
-        // Si hay una reconexión exitosa, limpiar el estado de abandono
         if (isReconnecting) {
             game.abandonedBy = null; 
         }
 
-        // Unir el socket a la sala
         socket.join(roomId);
         currentRoomId = roomId;
         game.playerCount = (game.p1SocketId !== null ? 1 : 0) + (game.p2SocketId !== null ? 1 : 0);
-        
         
         const roleName = game[`p${role}`].name || `Jugador ${role}`;
         console.log(`${roleName} unido a la Sala ${roomId}.`);
@@ -510,47 +477,33 @@ io.on('connection', (socket) => {
             game.statusMessage = `Conectado como ${roleName}. Esperando oponente.`;
         }
         
-        socket.emit('roleAssignment', role, game.p1.name, game.p2.name); // Añadir nombres para el cliente
+        socket.emit('roleAssignment', role, game.p1.name, game.p2.name); 
         io.to(roomId).emit('stateUpdate', game);
-        
-        // ENVIAR LISTA DE SALAS AL UNIRSE (Se actualiza si se llena o se crea una nueva)
         broadcastActiveRooms();
     });
 
-    // 2. Configuración de Tácticas (Setup)
+    // 2. Setup
     socket.on('setup', (data) => {
         if (!currentRoomId || data.role !== role) return;
-        
         const game = getGame(currentRoomId);
         if (!game) return;
 
         const { d, m, a } = data;
-        
-        if (
-            d + m + a !== 10 ||
-            d < 2 || d > 5 ||
-            m < 3 || m > 6 ||
-            a < 1 || a > 4
-        ) {
-            io.to(socket.id).emit('stateUpdate', {...game, statusMessage: `Tácticas inválidas. Rangos: Defence 2–5 | Midfield 3–6 | Attack 1–4 (Total 10)`});
+        if (d + m + a !== 10 || d < 2 || d > 5 || m < 3 || m > 6 || a < 1 || a > 4) {
+            io.to(socket.id).emit('stateUpdate', {...game, statusMessage: `Tácticas inválidas.`});
             return;
         }
 
         const roleName = game[`p${role}`].name || `Jugador ${role}`;
         
         if (role === 1) {
-            game.p1.D = d;
-            game.p1.M = m;
-            game.p1.A = a;
+            game.p1.D = d; game.p1.M = m; game.p1.A = a;
             game.statusMessage = `${roleName} ha bloqueado sus tácticas. Jugador 2, es tu turno.`;
         } else if (role === 2) {
-            game.p2.D = d;
-            game.p2.M = m;
-            game.p2.A = a;
+            game.p2.D = d; game.p2.M = m; game.p2.A = a;
             game.statusMessage = `${roleName} ha bloqueado sus tácticas.`;
         }
         
-        // Comprobar si ambos han enviado las tácticas
         const p1Submitted = (game.p1.D + game.p1.M + game.p1.A) === RULES_MAX_POINTS;
         const p2Submitted = (game.p2.D + game.p2.M + game.p2.A) === RULES_MAX_POINTS;
         
@@ -558,14 +511,12 @@ io.on('connection', (socket) => {
             game.isSetupComplete = true;
             game.statusMessage = `¡Tácticas bloqueadas! Ambos jugadores listos. ¡A rodar el dado!`;
         }
-
         io.to(currentRoomId).emit('stateUpdate', game); 
     });
 
-    // 3. Tirada de Dados (Roll)
+    // 3. Roll
     socket.on('rollAction', () => {
         if (!currentRoomId) return;
-        
         const game = getGame(currentRoomId);
         if (!game.isSetupComplete) {
             io.to(socket.id).emit('stateUpdate', {...game, statusMessage: "Espera a que ambos jugadores configuren sus tácticas."});
@@ -574,192 +525,121 @@ io.on('connection', (socket) => {
         handleRoll(currentRoomId, role, socket); 
     });
     
-    // 4. Solicitud de Nuevo Juego (Sincronizado)
+    // 4. Nuevo Juego
     socket.on('playerReadyForNewGame', () => { 
         if (!currentRoomId) return;
-        
         const game = getGame(currentRoomId);
-        
         if (!game.gameOver) return;
 
-        if (role === 1) {
-            game.p1ReadyForNewGame = true;
-        } else if (role === 2) {
-            game.p2ReadyForNewGame = true;
-        }
+        if (role === 1) game.p1ReadyForNewGame = true;
+        else if (role === 2) game.p2ReadyForNewGame = true;
         
         const playerSlotReady = (role === 1) ? 'p1ReadyForNewGame' : 'p2ReadyForNewGame';
         const otherPlayerSlotReady = (role === 1) ? 'p2ReadyForNewGame' : 'p1ReadyForNewGame';
         const otherPlayerRole = (role === 1) ? 2 : 1;
-        
         const otherPlayerAbandoned = game.abandonedBy === `p${otherPlayerRole}`;
 
         if (game[playerSlotReady] && (game[otherPlayerSlotReady] || otherPlayerAbandoned)) {
-            
             if (otherPlayerAbandoned) {
                 game[otherPlayerSlotReady] = false; 
-                game.abandonedBy = null; // Limpiar el estado de abandono
+                game.abandonedBy = null;
             }
-            
             resetGame(currentRoomId); 
             
             if (game.playerCount < 2) {
-                // Si el otro jugador no está (o abandonó), solo emitimos al jugador que hizo click
                 socket.emit('goToSetup', game); 
             } else {
                  io.to(currentRoomId).emit('stateUpdate', game); 
             }
-            
         } else {
             const otherRoleName = game[`p${otherPlayerRole}`].name || `Jugador ${otherPlayerRole}`;
             game.statusMessage = `¡${game[`p${role}`].name} ya está listo! Esperando a ${otherRoleName} para iniciar una nueva partida...`;
-
             io.to(currentRoomId).emit('stateUpdate', game); 
         }
     });
 
-    // 5. Desconexión NO CONTROLADA (Abandono/Timeout)
+    // 5. Desconexión
     socket.on('disconnect', () => {
         if (!currentRoomId) return;
-        
         const game = getGame(currentRoomId);
         if (!game) return;
 
-        // 1. Determinar el rol que se desconectó
         let disconnectedRole = null;
-        if (socket.id === game.p1SocketId) {
-            disconnectedRole = 1;
-        } else if (socket.id === game.p2SocketId) {
-            disconnectedRole = 2;
-        }
+        if (socket.id === game.p1SocketId) disconnectedRole = 1;
+        else if (socket.id === game.p2SocketId) disconnectedRole = 2;
         
         if (disconnectedRole === null) return; 
         
         const disconnectedPlayerName = game[`p${disconnectedRole}`].name || `Jugador ${disconnectedRole}`;
         
-        // 2. Lógica de Abandono/Reconexión
         if (!game.gameOver || (game.gameOver && !game.abandonedBy)) { 
-            
-            console.log(`${disconnectedPlayerName} desconectado. Iniciando timeout de abandono (${ABANDONMENT_TIMEOUT_MS/1000}s).`);
-            
+            console.log(`${disconnectedPlayerName} desconectado. Iniciando timeout.`);
             const timeoutKey = `${currentRoomId}_${disconnectedRole}`;
             
-            // Creamos el nuevo timeout
             disconnectTimeouts[timeoutKey] = setTimeout(() => {
-                
-                console.log(`Timeout expirado para ${disconnectedPlayerName} en ${currentRoomId}. Declarando abandono.`);
-                
+                console.log(`Timeout expirado para ${disconnectedPlayerName}.`);
                 const remainingRole = (disconnectedRole === 1) ? 2 : 1;
                 const remainingPlayerSocketId = (remainingRole === 1) ? game.p1SocketId : game.p2SocketId;
 
-                // 1. Declarar al ganador por abandono y notificar (emite stateUpdate con gameOver=true)
-                if (!game.gameOver) {
-                    declareWinnerByAbandonment(currentRoomId, disconnectedRole);
-                }
+                if (!game.gameOver) declareWinnerByAbandonment(currentRoomId, disconnectedRole);
                 
-                // === LÓGICA DE REDIRECCIÓN AUTOMÁTICA AL SETUP ===
                 if (remainingPlayerSocketId) {
-                    
-                    // 2. Restablecer el estado para empezar una nueva partida
                     game.gameOver = false;
                     game.abandonedBy = null;
                     game[`p${remainingRole}ReadyForNewGame`] = false; 
-                    
-                    // 3. Resetear el juego (limpia fases, scores, setups, pero mantiene nombres y IDs)
                     resetGame(currentRoomId); 
-                    
-                    // 4. Enviar evento de transición al cliente restante para ir a SETUP
                     io.to(remainingPlayerSocketId).emit('goToSetup', game); 
-                    console.log(`Jugador ${remainingRole} forzado a la pantalla de SETUP.`);
                 }
-                // === FIN: LÓGICA DE REDIRECCIÓN AUTOMÁTICA AL SETUP ===
                 
-                // Liberar el slot del socket permanentemente
                 const slotId = (disconnectedRole === 1) ? 'p1SocketId' : 'p2SocketId';
                 game[slotId] = null;
                 game.playerCount = (game.p1SocketId !== null ? 1 : 0) + (game.p2SocketId !== null ? 1 : 0);
                 
-                if (game.playerCount === 0) {
-                    delete games[currentRoomId];
-                    console.log(`Sala ${currentRoomId} eliminada por estar vacía.`);
-                }
-                
+                if (game.playerCount === 0) delete games[currentRoomId];
                 delete disconnectTimeouts[timeoutKey];
-                
-                // ENVIAR LISTA DE SALAS AL ELIMINAR/LIBERAR SLOT
                 broadcastActiveRooms();
             }, ABANDONMENT_TIMEOUT_MS);
         }
         
-        // Liberar el slot del socket inmediatamente para permitir la reconexión rápida
-        if (socket.id === game.p1SocketId) {
-            game.p1SocketId = null;
-        } else if (socket.id === game.p2SocketId) {
-            game.p2SocketId = null;
-        }
+        if (socket.id === game.p1SocketId) game.p1SocketId = null;
+        else if (socket.id === game.p2SocketId) game.p2SocketId = null;
         
         game.playerCount = (game.p1SocketId !== null ? 1 : 0) + (game.p2SocketId !== null ? 1 : 0);
 
-        // Notificar a la sala restante sobre la desconexión
         if (game.playerCount === 1) {
-            const message = `¡${disconnectedPlayerName} se ha desconectado! Esperando reconexión por ${ABANDONMENT_TIMEOUT_MS/1000} segundos...`;
-            game.statusMessage = message; 
+            game.statusMessage = `¡${disconnectedPlayerName} se ha desconectado! Esperando reconexión...`; 
             io.to(currentRoomId).emit('stateUpdate', game);
-        } else if (game.playerCount === 0) {
-            console.log(`Jugador ${disconnectedRole} de la Sala ${currentRoomId} desconectado. Jugadores restantes: 0.`);
         }
     });
 
-    // 6. Abandono controlado y vuelta al lobby (NUEVO)
+    // 6. Abandono Controlado
     socket.on('leaveRoom', () => {
         if (!currentRoomId || role === 0) return;
-
         const game = getGame(currentRoomId);
         if (!game) return;
 
-        console.log(`${game[`p${role}`].name} (${role}) está saliendo de la Sala ${currentRoomId} intencionalmente.`);
-
+        console.log(`${game[`p${role}`].name} saliendo de sala.`);
         const oldRoomId = currentRoomId;
         const disconnectedRole = role;
-
-        // Limpiar el slot del jugador en el juego
         const slotId = (disconnectedRole === 1) ? 'p1SocketId' : 'p2SocketId';
         game[slotId] = null;
-
-        // Limpiar variables de socket local (IMPORTANTE)
         role = 0;
         currentRoomId = null;
-
-        // 1. Abandonar la sala de Socket.IO
         socket.leave(oldRoomId);
-
-        // 2. Actualizar el contador
         game.playerCount = (game.p1SocketId !== null ? 1 : 0) + (game.p2SocketId !== null ? 1 : 0);
         
-        // 3. Notificar al otro jugador si existe
         if (game.playerCount === 1) {
             const remainingRole = (disconnectedRole === 1) ? 2 : 1;
             const remainingPlayerSocketId = (remainingRole === 1) ? game.p1SocketId : game.p2SocketId;
-            
-            // Cancelar el timeout de abandono del otro jugador si estaba activo
             clearAbandonmentTimeout(oldRoomId, remainingRole); 
-
             if (remainingPlayerSocketId) {
-                game.statusMessage = `¡${game[`p${disconnectedRole}`].name} ha salido de la sala! Esperando un nuevo oponente...`;
+                game.statusMessage = `¡${game[`p${disconnectedRole}`].name} ha salido! Esperando oponente...`;
                 io.to(remainingPlayerSocketId).emit('stateUpdate', game); 
             }
         }
+        if (game.playerCount === 0) delete games[oldRoomId];
         
-        // 4. Limpieza de sala si está vacía
-        if (game.playerCount === 0) {
-            delete games[oldRoomId];
-            console.log(`Sala ${oldRoomId} eliminada por estar vacía después de la salida controlada.`);
-        }
-        
-        // 5. Informar al cliente que puede ir al lobby
         socket.emit('goToLobby');
-
-        // 6. Actualizar lista de salas para todos
         broadcastActiveRooms();
     });
 });
