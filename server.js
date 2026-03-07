@@ -29,6 +29,7 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+/*
 // === CONFIGURACIÓN POSTGRESQL ===
 const pool = new Pool({
     user: 'postgres',
@@ -37,6 +38,21 @@ const pool = new Pool({
     password: 'postgres',
     port: 5432,
 });
+*/
+
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+});
+
+pool.on('connect', () => {
+    console.log("Connected to Neon database");
+});
+
+pool.on('error', (err) => {
+    console.error("Unexpected PG pool error", err);
+});
+
 
 // === ENDPOINTS DE AUTENTICACIÓN ===
 app.post('/register', async (req, res) => {
