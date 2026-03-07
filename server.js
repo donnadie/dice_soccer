@@ -40,7 +40,7 @@ const pool = new Pool({
 });
 */
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL});
+const pool = new Pool({ connectionString: "postgresql://neondb_owner:npg_T3oV6vQGkate@ep-long-brook-a48qek7r-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"  });
 
 pool.on('connect', () => {
     console.log("Connected to Neon database");
