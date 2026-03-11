@@ -103,7 +103,7 @@ app.post('/login', async (req, res) => {
 const PORT = 3000;
 const RULES_MAX_POINTS = 10;
 const RULES_MAX_STAT = 7;
-const RULES_MAX_PHASES = 1;
+const RULES_MAX_PHASES = 9;
 
 // --- ESTRUCTURA DEL JUEGO AUTORITATIVA ---
 let games = {}; 
